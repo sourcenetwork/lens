@@ -319,10 +319,8 @@ pub fn to_mem(type_id: i8, message: &[u8]) -> *mut u8 {
 /// #
 /// # #[derive(Serialize, Deserialize)]
 /// # pub struct Value {
-/// #     #[serde(rename = "Name")]
 /// #     pub name: String,
-/// #     #[serde(rename = "__type")]
-/// # 	pub type_name: String,
+/// # 	  pub type_name: String,
 /// # }
 /// #
 /// # #[unsafe(no_mangle)]
@@ -555,9 +553,7 @@ macro_rules! define_set_param {
 ///
 /// #[derive(Serialize, Deserialize)]
 /// pub struct Value {
-///     #[serde(rename = "FullName")]
 ///     pub name: String,
-///     #[serde(rename = "Age")]
 /// 	pub age: i64,
 /// }
 ///
@@ -603,9 +599,7 @@ macro_rules! define_set_param {
 ///
 /// #[derive(Serialize, Deserialize)]
 /// pub struct Value {
-///     #[serde(rename = "FullName")]
 ///     pub name: String,
-///     #[serde(rename = "Age")]
 /// 	pub age: i64,
 /// }
 ///
