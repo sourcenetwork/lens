@@ -45,7 +45,7 @@ func (r *implicitTxnRepository) Add(ctx context.Context, collectionID string, cf
 	defer txn.Discard(ctx)
 	txnCtx := r.repository.getCtx(txn, false)
 
-	err = r.repository.add(ctx, txnCtx, collectionID, cfg)
+	err = r.repository.add(txnCtx, collectionID, cfg)
 	if err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func (r *implicitTxnRepository) Add(ctx context.Context, collectionID string, cf
 }
 
 func (r *explicitTxnRepository) Add(ctx context.Context, collectionID string, cfg model.Lens) error {
-	return r.repository.add(ctx, r.repository.getCtx(r.txn, false), collectionID, cfg)
+	return r.repository.add(r.repository.getCtx(r.txn, false), collectionID, cfg)
 }
 
 func (r *implicitTxnRepository) Transform(

@@ -162,7 +162,6 @@ func (r *repository) getCtx(txn Txn, readonly bool) *txnContext {
 }
 
 func (r *repository) add(
-	_ context.Context,
 	txnCtx *txnContext,
 	id string,
 	cfg model.Lens,
