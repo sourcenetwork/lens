@@ -11,41 +11,41 @@ import (
 	"github.com/sourcenetwork/immutable/enumerable"
 )
 
-type implicitTxnLensRegistry struct {
-	registry *lensRegistry
-	db       TxnSource
+type implicitTxnRepository struct {
+	repository *repository
+	db         TxnSource
 }
 
-type explicitTxnLensRegistry struct {
-	registry *lensRegistry
-	txn      Txn
+type explicitTxnRepository struct {
+	repository *repository
+	txn        Txn
 }
 
-var _ LensRegistry = (*implicitTxnLensRegistry)(nil)
-var _ LensRegistry = (*explicitTxnLensRegistry)(nil)
+var _ Repository = (*implicitTxnRepository)(nil)
+var _ Repository = (*explicitTxnRepository)(nil)
 
-func (r *implicitTxnLensRegistry) Init(txnSource TxnSource) {
+func (r *implicitTxnRepository) Init(txnSource TxnSource) {
 	r.db = txnSource
 }
 
-func (r *explicitTxnLensRegistry) Init(txnSource TxnSource) {}
+func (r *explicitTxnRepository) Init(txnSource TxnSource) {}
 
-func (r *explicitTxnLensRegistry) WithTxn(txn Txn) LensRegistry {
-	return &explicitTxnLensRegistry{
-		registry: r.registry,
-		txn:      txn,
+func (r *explicitTxnRepository) WithTxn(txn Txn) Repository {
+	return &explicitTxnRepository{
+		repository: r.repository,
+		txn:        txn,
 	}
 }
 
-func (r *implicitTxnLensRegistry) SetMigration(ctx context.Context, collectionID string, cfg model.Lens) error {
+func (r *implicitTxnRepository) Add(ctx context.Context, collectionID string, cfg model.Lens) error {
 	txn, err := r.db.NewTxn(ctx, false)
 	if err != nil {
 		return err
 	}
 	defer txn.Discard(ctx)
-	txnCtx := r.registry.getCtx(txn, false)
+	txnCtx := r.repository.getCtx(txn, false)
 
-	err = r.registry.setMigration(ctx, txnCtx, collectionID, cfg)
+	err = r.repository.add(ctx, txnCtx, collectionID, cfg)
 	if err != nil {
 		return err
 	}
@@ -53,11 +53,11 @@ func (r *implicitTxnLensRegistry) SetMigration(ctx context.Context, collectionID
 	return txn.Commit(ctx)
 }
 
-func (r *explicitTxnLensRegistry) SetMigration(ctx context.Context, collectionID string, cfg model.Lens) error {
-	return r.registry.setMigration(ctx, r.registry.getCtx(r.txn, false), collectionID, cfg)
+func (r *explicitTxnRepository) Add(ctx context.Context, collectionID string, cfg model.Lens) error {
+	return r.repository.add(ctx, r.repository.getCtx(r.txn, false), collectionID, cfg)
 }
 
-func (r *implicitTxnLensRegistry) MigrateUp(
+func (r *implicitTxnRepository) Transform(
 	ctx context.Context,
 	src enumerable.Enumerable[Document],
 	collectionID string,
@@ -69,18 +69,18 @@ func (r *implicitTxnLensRegistry) MigrateUp(
 	defer txn.Discard(ctx)
 	txnCtx := newTxnCtx(txn)
 
-	return r.registry.migrateUp(txnCtx, src, collectionID)
+	return r.repository.transform(txnCtx, src, collectionID)
 }
 
-func (r *explicitTxnLensRegistry) MigrateUp(
+func (r *explicitTxnRepository) Transform(
 	ctx context.Context,
 	src enumerable.Enumerable[Document],
 	collectionID string,
 ) (enumerable.Enumerable[map[string]any], error) {
-	return r.registry.migrateUp(r.registry.getCtx(r.txn, true), src, collectionID)
+	return r.repository.transform(r.repository.getCtx(r.txn, true), src, collectionID)
 }
 
-func (r *implicitTxnLensRegistry) MigrateDown(
+func (r *implicitTxnRepository) Inverse(
 	ctx context.Context,
 	src enumerable.Enumerable[Document],
 	collectionID string,
@@ -92,13 +92,13 @@ func (r *implicitTxnLensRegistry) MigrateDown(
 	defer txn.Discard(ctx)
 	txnCtx := newTxnCtx(txn)
 
-	return r.registry.migrateDown(txnCtx, src, collectionID)
+	return r.repository.inverse(txnCtx, src, collectionID)
 }
 
-func (r *explicitTxnLensRegistry) MigrateDown(
+func (r *explicitTxnRepository) Inverse(
 	ctx context.Context,
 	src enumerable.Enumerable[Document],
 	collectionID string,
 ) (enumerable.Enumerable[map[string]any], error) {
-	return r.registry.migrateDown(r.registry.getCtx(r.txn, true), src, collectionID)
+	return r.repository.inverse(r.repository.getCtx(r.txn, true), src, collectionID)
 }

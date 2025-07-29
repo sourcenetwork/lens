@@ -14,49 +14,50 @@ import (
 	"github.com/sourcenetwork/immutable/enumerable"
 )
 
-// todo: This file, particularly the `lensPool` stuff, contains fairly sensitive code that is both
+// todo: This file, particularly the `pool` stuff, contains fairly sensitive code that is both
 // cumbersome to fully test with integration/benchmark tests, and can have a significant affect on
-// the users if broken (deadlocks, large performance degradation).  It should have proper unit tests.
+// the users if broken (deadlocks, large performance degradation).  It should have dedicated tests.
 // https://github.com/sourcenetwork/defradb/issues/1596
+//
+// todo: This package currently relies on Defra tests for coverage - this needs to be resolved in:
+// https://github.com/sourcenetwork/lens/issues/108
 
-// LensRegistry exposes several useful thread-safe migration related functions which may
-// be used to manage migrations.
-type LensRegistry interface {
-	// Init initializes the registry with the provided transaction source.
+// Repository is a thread-safe store of pooled, reuseable, lens-wasm instances, allowing consumers
+// to initialize a fixed amount up front and then use them as many times as required later.
+//
+// Should all instances within the pool be busy when accessing, temporary instances will be spun up
+// on demand.  This is relatively expensive compared to the typical execution cost of a Lens function.
+type Repository interface {
+	// Init initializes the repository with the provided transaction source.
+	//
+	// Transactions are created from the source in order to ensure that partial changes are not applied on
+	// execution of other functions on the [Repository] interface.
 	Init(TxnSource)
 
-	// SetMigration caches the migration for the given collection ID. It does not persist the migration in long
-	// term storage, for that one should call [Store.SetMigration(ctx, cfg)].
-	//
-	// There may only be one migration per collection.  If another migration was registered it will be
-	// overwritten by this migration.
-	//
-	// Migrations will only run if there is a complete path from the document schema version to the latest local
-	// schema version.
-	SetMigration(context.Context, string, model.Lens) error
+	// Add caches the given lenses for the given ID, a reuseable set of wasm instances - the number of instances
+	// created is determined by the `poolSize` parameter provided on repository creation.
+	Add(ctx context.Context, id string, cfg model.Lens) error
 
-	// MigrateUp returns an enumerable that feeds the given source through the Lens migration for the given
-	// collection id if one is found, if there is no matching migration the given source will be returned.
-	MigrateUp(
-		context.Context,
-		enumerable.Enumerable[Document],
-		string,
+	// Transform returns an enumerable that feeds the given source through the Lens transform for the given
+	// id, if there is no matching lens the given source will be returned.
+	Transform(
+		ctx context.Context,
+		source enumerable.Enumerable[Document],
+		id string,
 	) (enumerable.Enumerable[Document], error)
 
-	// MigrateDown returns an enumerable that feeds the given source through the Lens migration for the given
-	// collection id in reverse if one is found, if there is no matching migration the given source will be returned.
-	//
-	// This downgrades any documents in the source enumerable if/when enumerated.
-	MigrateDown(
-		context.Context,
-		enumerable.Enumerable[Document],
-		string,
+	// Inverse returns an enumerable that feeds the given source through the Lens inverse for the given
+	// id, if there is no matching lens the given source will be returned.
+	Inverse(
+		ctx context.Context,
+		source enumerable.Enumerable[Document],
+		id string,
 	) (enumerable.Enumerable[Document], error)
 }
 
-// lensRegistry is responsible for managing all migration related state within a local
+// repository is responsible for managing all migration related state within a local
 // database instance.
-type lensRegistry struct {
+type repository struct {
 	poolSize int
 
 	// The runtime used to execute lens wasm modules.
@@ -66,9 +67,9 @@ type lensRegistry struct {
 	modulesByPath map[string]module.Module
 	moduleLock    sync.Mutex
 
-	lensPoolsByCollectionID     map[string]*lensPool
-	reversedPoolsByCollectionID map[string]*lensPool
-	poolLock                    sync.RWMutex
+	lensPoolsByID     map[string]*pool
+	reversedPoolsByID map[string]*pool
+	poolLock          sync.RWMutex
 
 	// Writable transaction contexts by transaction ID.
 	//
@@ -77,45 +78,41 @@ type lensRegistry struct {
 	txnLock sync.RWMutex
 }
 
-// txnContext contains uncommitted transaction state tracked by the registry,
+// txnContext contains uncommitted transaction state tracked by the repository,
 // stuff within here should be accessible from within this transaction but not
 // from outside.
 type txnContext struct {
-	txn                         Txn
-	lensPoolsByCollectionID     map[string]*lensPool
-	reversedPoolsByCollectionID map[string]*lensPool
+	txn               Txn
+	lensPoolsByID     map[string]*pool
+	reversedPoolsByID map[string]*pool
 }
 
 func newTxnCtx(txn Txn) *txnContext {
 	return &txnContext{
-		txn:                         txn,
-		lensPoolsByCollectionID:     map[string]*lensPool{},
-		reversedPoolsByCollectionID: map[string]*lensPool{},
+		txn:               txn,
+		lensPoolsByID:     map[string]*pool{},
+		reversedPoolsByID: map[string]*pool{},
 	}
 }
 
-// NewRegistry instantiates a new registery.
-//
-// It will be of size 5 (per schema version) if a size is not provided.
-func NewRegistry(
+// NewRepository instantiates a new repository.
+func NewRepository(
 	poolSize int,
 	runtime module.Runtime,
-) LensRegistry {
-	registry := &lensRegistry{
-		poolSize:                    poolSize,
-		runtime:                     runtime,
-		modulesByPath:               map[string]module.Module{},
-		lensPoolsByCollectionID:     map[string]*lensPool{},
-		reversedPoolsByCollectionID: map[string]*lensPool{},
-		txnCtxs:                     map[uint64]*txnContext{},
-	}
-
-	return &implicitTxnLensRegistry{
-		registry: registry,
+) Repository {
+	return &implicitTxnRepository{
+		repository: &repository{
+			poolSize:          poolSize,
+			runtime:           runtime,
+			modulesByPath:     map[string]module.Module{},
+			lensPoolsByID:     map[string]*pool{},
+			reversedPoolsByID: map[string]*pool{},
+			txnCtxs:           map[uint64]*txnContext{},
+		},
 	}
 }
 
-func (r *lensRegistry) getCtx(txn Txn, readonly bool) *txnContext {
+func (r *repository) getCtx(txn Txn, readonly bool) *txnContext {
 	r.txnLock.RLock()
 	if txnCtx, ok := r.txnCtxs[txn.ID()]; ok {
 		r.txnLock.RUnlock()
@@ -134,11 +131,11 @@ func (r *lensRegistry) getCtx(txn Txn, readonly bool) *txnContext {
 
 	txnCtx.txn.OnSuccess(func() {
 		r.poolLock.Lock()
-		for collectionID, locker := range txnCtx.lensPoolsByCollectionID {
-			r.lensPoolsByCollectionID[collectionID] = locker
+		for id, locker := range txnCtx.lensPoolsByID {
+			r.lensPoolsByID[id] = locker
 		}
-		for collectionID, locker := range txnCtx.reversedPoolsByCollectionID {
-			r.reversedPoolsByCollectionID[collectionID] = locker
+		for id, locker := range txnCtx.reversedPoolsByID {
+			r.reversedPoolsByID[id] = locker
 		}
 		r.poolLock.Unlock()
 
@@ -164,10 +161,10 @@ func (r *lensRegistry) getCtx(txn Txn, readonly bool) *txnContext {
 	return txnCtx
 }
 
-func (r *lensRegistry) setMigration(
+func (r *repository) add(
 	_ context.Context,
 	txnCtx *txnContext,
-	collectionID string,
+	id string,
 	cfg model.Lens,
 ) error {
 	inversedModuleCfgs := make([]model.LensModule, len(cfg.Lenses))
@@ -187,11 +184,11 @@ func (r *lensRegistry) setMigration(
 		Lenses: inversedModuleCfgs,
 	}
 
-	err := r.cachePool(txnCtx.lensPoolsByCollectionID, cfg, collectionID)
+	err := r.cachePool(txnCtx.lensPoolsByID, cfg, id)
 	if err != nil {
 		return err
 	}
-	err = r.cachePool(txnCtx.reversedPoolsByCollectionID, reversedCfg, collectionID)
+	err = r.cachePool(txnCtx.reversedPoolsByID, reversedCfg, id)
 	// For now, checking this error is the best way of determining if a migration has an inverse.
 	// Inverses are optional.
 	if err != nil && err.Error() != "Export `inverse` does not exist" {
@@ -201,10 +198,10 @@ func (r *lensRegistry) setMigration(
 	return nil
 }
 
-func (r *lensRegistry) cachePool(
-	target map[string]*lensPool,
+func (r *repository) cachePool(
+	target map[string]*pool,
 	cfg model.Lens,
-	collectionID string,
+	id string,
 ) error {
 	pool := r.newPool(r.poolSize, cfg)
 
@@ -216,34 +213,34 @@ func (r *lensRegistry) cachePool(
 		pool.returnLens(lensPipe)
 	}
 
-	target[collectionID] = pool
+	target[id] = pool
 
 	return nil
 }
 
-func (r *lensRegistry) migrateUp(
+func (r *repository) transform(
 	txnCtx *txnContext,
 	src enumerable.Enumerable[Document],
-	collectionID string,
+	id string,
 ) (enumerable.Enumerable[Document], error) {
-	return r.migrate(r.lensPoolsByCollectionID, txnCtx.lensPoolsByCollectionID, src, collectionID)
+	return r.appendLens(r.lensPoolsByID, txnCtx.lensPoolsByID, src, id)
 }
 
-func (r *lensRegistry) migrateDown(
+func (r *repository) inverse(
 	txnCtx *txnContext,
 	src enumerable.Enumerable[Document],
-	collectionID string,
+	id string,
 ) (enumerable.Enumerable[Document], error) {
-	return r.migrate(r.reversedPoolsByCollectionID, txnCtx.reversedPoolsByCollectionID, src, collectionID)
+	return r.appendLens(r.reversedPoolsByID, txnCtx.reversedPoolsByID, src, id)
 }
 
-func (r *lensRegistry) migrate(
-	pools map[string]*lensPool,
-	txnPools map[string]*lensPool,
+func (r *repository) appendLens(
+	pools map[string]*pool,
+	txnPools map[string]*pool,
 	src enumerable.Enumerable[Document],
-	collectionID string,
+	id string,
 ) (enumerable.Enumerable[Document], error) {
-	lensPool, ok := r.getPool(pools, txnPools, collectionID)
+	lensPool, ok := r.getPool(pools, txnPools, id)
 	if !ok {
 		// If there are no migrations for this schema version, just return the given source.
 		return src, nil
@@ -259,31 +256,31 @@ func (r *lensRegistry) migrate(
 	return lens, nil
 }
 
-func (r *lensRegistry) getPool(
-	pools map[string]*lensPool,
-	txnPools map[string]*lensPool,
-	collectionID string,
-) (*lensPool, bool) {
-	if pool, ok := txnPools[collectionID]; ok {
+func (r *repository) getPool(
+	pools map[string]*pool,
+	txnPools map[string]*pool,
+	id string,
+) (*pool, bool) {
+	if pool, ok := txnPools[id]; ok {
 		return pool, true
 	}
 
 	r.poolLock.RLock()
-	pool, ok := pools[collectionID]
+	pool, ok := pools[id]
 	r.poolLock.RUnlock()
 	return pool, ok
 }
 
-// lensPool provides a pool-like mechanic for caching a limited number of wasm lens modules in
+// pool provides a pool-like mechanic for caching a limited number of wasm lens modules in
 // a thread safe fashion.
 //
 // Instanstiating a lens module is pretty expensive as it has to spin up the wasm runtime environment
 // so we need to limit how frequently we do this.
-type lensPool struct {
+type pool struct {
 	// The config used to create the lenses within this locker.
 	cfg model.Lens
 
-	registry *lensRegistry
+	repository *repository
 
 	// Using a buffered channel provides an easy way to manage a finite
 	// number of lenses.
@@ -291,21 +288,21 @@ type lensPool struct {
 	// We wish to limit this as creating lenses is expensive, and we do not want
 	// to be dynamically resizing this collection and spinning up new lens instances
 	// in user time, or holding on to large numbers of them.
-	pipes chan *lensPipe
+	pipes chan *pipe
 }
 
-func (r *lensRegistry) newPool(lensPoolSize int, cfg model.Lens) *lensPool {
-	return &lensPool{
-		cfg:      cfg,
-		registry: r,
-		pipes:    make(chan *lensPipe, lensPoolSize),
+func (r *repository) newPool(lensPoolSize int, cfg model.Lens) *pool {
+	return &pool{
+		cfg:        cfg,
+		repository: r,
+		pipes:      make(chan *pipe, lensPoolSize),
 	}
 }
 
 // borrow attempts to borrow a module from the locker, if one is not available
 // it will return a new, temporary instance that will not be returned to the locker
 // after use.
-func (l *lensPool) borrow() (enumerable.Socket[Document], error) {
+func (l *pool) borrow() (enumerable.Socket[Document], error) {
 	select {
 	case lens := <-l.pipes:
 		return &borrowedEnumerable{
@@ -315,12 +312,12 @@ func (l *lensPool) borrow() (enumerable.Socket[Document], error) {
 	default:
 		// If there are no free cached migrations within the locker, create a new temporary one
 		// instead of blocking.
-		return l.registry.newLensPipe(l.cfg)
+		return l.repository.newLensPipe(l.cfg)
 	}
 }
 
 // returnLens returns a borrowed module to the locker, allowing it to be reused by other contexts.
-func (l *lensPool) returnLens(lens *lensPipe) {
+func (l *pool) returnLens(lens *pipe) {
 	l.pipes <- lens
 }
 
@@ -329,8 +326,8 @@ func (l *lensPool) returnLens(lens *lensPipe) {
 // it exposes the source enumerable and amends the Reset function so that when called, the source
 // pipe is returned to the locker.
 type borrowedEnumerable struct {
-	source *lensPipe
-	pool   *lensPool
+	source *pipe
+	pool   *pool
 }
 
 var _ enumerable.Socket[Document] = (*borrowedEnumerable)(nil)
@@ -352,16 +349,16 @@ func (s *borrowedEnumerable) Reset() {
 	s.source.Reset()
 }
 
-// lensPipe provides a mechanic where the underlying wasm module can be hidden from consumers
+// pipe provides a mechanic where the underlying wasm module can be hidden from consumers
 // and allow input sources to be swapped in and out as different actors borrow it from the locker.
-type lensPipe struct {
+type pipe struct {
 	input      enumerable.Socket[Document]
 	enumerable enumerable.Enumerable[Document]
 }
 
-var _ enumerable.Socket[Document] = (*lensPipe)(nil)
+var _ enumerable.Socket[Document] = (*pipe)(nil)
 
-func (r *lensRegistry) newLensPipe(cfg model.Lens) (*lensPipe, error) {
+func (r *repository) newLensPipe(cfg model.Lens) (*pipe, error) {
 	socket := enumerable.NewSocket[Document]()
 
 	r.moduleLock.Lock()
@@ -372,25 +369,25 @@ func (r *lensRegistry) newLensPipe(cfg model.Lens) (*lensPipe, error) {
 		return nil, err
 	}
 
-	return &lensPipe{
+	return &pipe{
 		input:      socket,
 		enumerable: enumerable,
 	}, nil
 }
 
-func (p *lensPipe) SetSource(newSource enumerable.Enumerable[Document]) {
+func (p *pipe) SetSource(newSource enumerable.Enumerable[Document]) {
 	p.input.SetSource(newSource)
 }
 
-func (p *lensPipe) Next() (bool, error) {
+func (p *pipe) Next() (bool, error) {
 	return p.enumerable.Next()
 }
 
-func (p *lensPipe) Value() (Document, error) {
+func (p *pipe) Value() (Document, error) {
 	return p.enumerable.Value()
 }
 
-func (p *lensPipe) Reset() {
+func (p *pipe) Reset() {
 	p.input.Reset()
 	// WARNING: Currently the wasm module state is not reset by calling reset on the enumerable
 	// this means that state from one context may leak to the next useage.  There is a ticket here
