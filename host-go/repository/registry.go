@@ -19,9 +19,6 @@ import (
 // the users if broken (deadlocks, large performance degradation).  It should have proper unit tests.
 // https://github.com/sourcenetwork/defradb/issues/1596
 
-// Document represents an item that will be sent to/from a Lens and transformed.
-type Document = map[string]any
-
 // TxnSource represents an object capable of constructing the transactions that
 // implicit-transaction registries need internally.
 type TxnSource interface {
