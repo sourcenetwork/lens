@@ -73,9 +73,9 @@ type LensRegistry interface {
 	// collection id if one is found, if there is no matching migration the given source will be returned.
 	MigrateUp(
 		context.Context,
-		enumerable.Enumerable[map[string]any],
+		enumerable.Enumerable[Document],
 		string,
-	) (enumerable.Enumerable[map[string]any], error)
+	) (enumerable.Enumerable[Document], error)
 
 	// MigrateDown returns an enumerable that feeds the given source through the Lens migration for the given
 	// collection id in reverse if one is found, if there is no matching migration the given source will be returned.
@@ -83,9 +83,9 @@ type LensRegistry interface {
 	// This downgrades any documents in the source enumerable if/when enumerated.
 	MigrateDown(
 		context.Context,
-		enumerable.Enumerable[map[string]any],
+		enumerable.Enumerable[Document],
 		string,
-	) (enumerable.Enumerable[map[string]any], error)
+	) (enumerable.Enumerable[Document], error)
 }
 
 // lensRegistry is responsible for managing all migration related state within a local
