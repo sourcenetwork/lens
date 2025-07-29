@@ -19,8 +19,8 @@ import (
 // the users if broken (deadlocks, large performance degradation).  It should have proper unit tests.
 // https://github.com/sourcenetwork/defradb/issues/1596
 
-// LensDoc represents a document that will be sent to/from a Lens.
-type LensDoc = map[string]any
+// Document represents an item that will be sent to/from a Lens and transformed.
+type Document = map[string]any
 
 // TxnSource represents an object capable of constructing the transactions that
 // implicit-transaction registries need internally.
@@ -257,26 +257,26 @@ func (r *lensRegistry) cachePool(
 
 func (r *lensRegistry) migrateUp(
 	txnCtx *txnContext,
-	src enumerable.Enumerable[LensDoc],
+	src enumerable.Enumerable[Document],
 	collectionID string,
-) (enumerable.Enumerable[LensDoc], error) {
+) (enumerable.Enumerable[Document], error) {
 	return r.migrate(r.lensPoolsByCollectionID, txnCtx.lensPoolsByCollectionID, src, collectionID)
 }
 
 func (r *lensRegistry) migrateDown(
 	txnCtx *txnContext,
-	src enumerable.Enumerable[LensDoc],
+	src enumerable.Enumerable[Document],
 	collectionID string,
-) (enumerable.Enumerable[LensDoc], error) {
+) (enumerable.Enumerable[Document], error) {
 	return r.migrate(r.reversedPoolsByCollectionID, txnCtx.reversedPoolsByCollectionID, src, collectionID)
 }
 
 func (r *lensRegistry) migrate(
 	pools map[string]*lensPool,
 	txnPools map[string]*lensPool,
-	src enumerable.Enumerable[LensDoc],
+	src enumerable.Enumerable[Document],
 	collectionID string,
-) (enumerable.Enumerable[LensDoc], error) {
+) (enumerable.Enumerable[Document], error) {
 	lensPool, ok := r.getPool(pools, txnPools, collectionID)
 	if !ok {
 		// If there are no migrations for this schema version, just return the given source.
@@ -339,7 +339,7 @@ func (r *lensRegistry) newPool(lensPoolSize int, cfg model.Lens) *lensPool {
 // borrow attempts to borrow a module from the locker, if one is not available
 // it will return a new, temporary instance that will not be returned to the locker
 // after use.
-func (l *lensPool) borrow() (enumerable.Socket[LensDoc], error) {
+func (l *lensPool) borrow() (enumerable.Socket[Document], error) {
 	select {
 	case lens := <-l.pipes:
 		return &borrowedEnumerable{
@@ -367,9 +367,9 @@ type borrowedEnumerable struct {
 	pool   *lensPool
 }
 
-var _ enumerable.Socket[LensDoc] = (*borrowedEnumerable)(nil)
+var _ enumerable.Socket[Document] = (*borrowedEnumerable)(nil)
 
-func (s *borrowedEnumerable) SetSource(newSource enumerable.Enumerable[LensDoc]) {
+func (s *borrowedEnumerable) SetSource(newSource enumerable.Enumerable[Document]) {
 	s.source.SetSource(newSource)
 }
 
@@ -377,7 +377,7 @@ func (s *borrowedEnumerable) Next() (bool, error) {
 	return s.source.Next()
 }
 
-func (s *borrowedEnumerable) Value() (LensDoc, error) {
+func (s *borrowedEnumerable) Value() (Document, error) {
 	return s.source.Value()
 }
 
@@ -389,17 +389,17 @@ func (s *borrowedEnumerable) Reset() {
 // lensPipe provides a mechanic where the underlying wasm module can be hidden from consumers
 // and allow input sources to be swapped in and out as different actors borrow it from the locker.
 type lensPipe struct {
-	input      enumerable.Socket[LensDoc]
-	enumerable enumerable.Enumerable[LensDoc]
+	input      enumerable.Socket[Document]
+	enumerable enumerable.Enumerable[Document]
 }
 
-var _ enumerable.Socket[LensDoc] = (*lensPipe)(nil)
+var _ enumerable.Socket[Document] = (*lensPipe)(nil)
 
 func (r *lensRegistry) newLensPipe(cfg model.Lens) (*lensPipe, error) {
-	socket := enumerable.NewSocket[LensDoc]()
+	socket := enumerable.NewSocket[Document]()
 
 	r.moduleLock.Lock()
-	enumerable, err := config.LoadInto[LensDoc, LensDoc](r.runtime, r.modulesByPath, cfg, socket)
+	enumerable, err := config.LoadInto[Document, Document](r.runtime, r.modulesByPath, cfg, socket)
 	r.moduleLock.Unlock()
 
 	if err != nil {
@@ -412,7 +412,7 @@ func (r *lensRegistry) newLensPipe(cfg model.Lens) (*lensPipe, error) {
 	}, nil
 }
 
-func (p *lensPipe) SetSource(newSource enumerable.Enumerable[LensDoc]) {
+func (p *lensPipe) SetSource(newSource enumerable.Enumerable[Document]) {
 	p.input.SetSource(newSource)
 }
 
@@ -420,7 +420,7 @@ func (p *lensPipe) Next() (bool, error) {
 	return p.enumerable.Next()
 }
 
-func (p *lensPipe) Value() (LensDoc, error) {
+func (p *lensPipe) Value() (Document, error) {
 	return p.enumerable.Value()
 }
 

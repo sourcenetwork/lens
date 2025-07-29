@@ -59,7 +59,7 @@ func (r *explicitTxnLensRegistry) SetMigration(ctx context.Context, collectionID
 
 func (r *implicitTxnLensRegistry) MigrateUp(
 	ctx context.Context,
-	src enumerable.Enumerable[LensDoc],
+	src enumerable.Enumerable[Document],
 	collectionID string,
 ) (enumerable.Enumerable[map[string]any], error) {
 	txn, err := r.db.NewTxn(ctx, true)
@@ -74,7 +74,7 @@ func (r *implicitTxnLensRegistry) MigrateUp(
 
 func (r *explicitTxnLensRegistry) MigrateUp(
 	ctx context.Context,
-	src enumerable.Enumerable[LensDoc],
+	src enumerable.Enumerable[Document],
 	collectionID string,
 ) (enumerable.Enumerable[map[string]any], error) {
 	return r.registry.migrateUp(r.registry.getCtx(r.txn, true), src, collectionID)
@@ -82,7 +82,7 @@ func (r *explicitTxnLensRegistry) MigrateUp(
 
 func (r *implicitTxnLensRegistry) MigrateDown(
 	ctx context.Context,
-	src enumerable.Enumerable[LensDoc],
+	src enumerable.Enumerable[Document],
 	collectionID string,
 ) (enumerable.Enumerable[map[string]any], error) {
 	txn, err := r.db.NewTxn(ctx, true)
@@ -97,7 +97,7 @@ func (r *implicitTxnLensRegistry) MigrateDown(
 
 func (r *explicitTxnLensRegistry) MigrateDown(
 	ctx context.Context,
-	src enumerable.Enumerable[LensDoc],
+	src enumerable.Enumerable[Document],
 	collectionID string,
 ) (enumerable.Enumerable[map[string]any], error) {
 	return r.registry.migrateDown(r.registry.getCtx(r.txn, true), src, collectionID)
