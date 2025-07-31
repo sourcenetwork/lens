@@ -57,6 +57,14 @@ func append[TSource any, TResult any](src enumerable.Enumerable[TSource], instan
 //
 // This is a fairly expensive operation.
 func NewModule(runtime module.Runtime, path string) (module.Module, error) {
+	wasm, err := GetWasmBytes(path)
+	if err != nil {
+		return nil, err
+	}
+	return runtime.NewModule(wasm)
+}
+
+func GetWasmBytes(path string) ([]byte, error) {
 	parsed, err := url.Parse(path)
 	if err != nil {
 		return nil, err
@@ -74,14 +82,17 @@ func NewModule(runtime module.Runtime, path string) (module.Module, error) {
 		if err != nil {
 			return nil, err
 		}
-		return runtime.NewModule(content)
+		return content, nil
 
 	case "file":
 		content, err := os.ReadFile(parsed.Path)
 		if err != nil {
 			return nil, err
 		}
-		return runtime.NewModule(content)
+		return content, nil
+
+	case "data":
+		return []byte(parsed.Host), nil
 
 	default:
 		return nil, fmt.Errorf("invalid module path: %s", path)
