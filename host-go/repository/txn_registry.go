@@ -30,7 +30,7 @@ func (r *implicitTxnRepository) Init(txnSource TxnSource) {
 
 func (r *explicitTxnRepository) Init(txnSource TxnSource) {}
 
-func (r *explicitTxnRepository) WithTxn(txn Txn) Repository {
+func (r *implicitTxnRepository) WithTxn(txn Txn) Repository {
 	return &explicitTxnRepository{
 		repository: r.repository,
 		txn:        txn,
