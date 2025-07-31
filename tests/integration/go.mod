@@ -1,6 +1,6 @@
 module github.com/sourcenetwork/lens/tests/integration
 
-go 1.23
+go 1.23.0
 
 require (
 	github.com/sourcenetwork/lens/tests/modules v0.0.0-20250801165343-50437dee953e
