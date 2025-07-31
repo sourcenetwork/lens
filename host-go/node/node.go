@@ -1,0 +1,103 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+package node
+
+import (
+	"context"
+	"errors"
+
+	badgerds "github.com/dgraph-io/badger/v4"
+	"github.com/sourcenetwork/corekv"
+
+	"github.com/sourcenetwork/corekv/badger"
+	"github.com/sourcenetwork/immutable"
+	"github.com/sourcenetwork/lens/host-go/runtimes"
+	"github.com/sourcenetwork/lens/host-go/store"
+)
+
+type closer = func() error
+
+type Node struct {
+	onClose []closer
+	Options Options
+	Store   store.TxnStore
+}
+
+func New(ctx context.Context, opts ...Option) (*Node, error) {
+	var o Options
+	for _, option := range opts {
+		option(&o)
+	}
+
+	onClose := []closer{}
+	if !o.Rootstore.HasValue() {
+		if !o.Path.HasValue() {
+			// This is because the corekv memory store is not yet reliable due to
+			// https://github.com/sourcenetwork/corekv/issues/58
+			// and badger in memory store does not support values greater than 1MB
+			// preventing it from storing lenses until we implement a work-around
+			return nil, errors.New("either rootstore or path must be provided")
+		}
+
+		rootstore, err := badger.NewDatastore(o.Path.Value(), badgerds.DefaultOptions(o.Path.Value()))
+		if err != nil {
+			return nil, err
+		}
+
+		o.Rootstore = immutable.Some[corekv.TxnReaderWriter](rootstore)
+
+		onClose = append(onClose, func() error {
+			// We should only close the store on close if we own it
+			return rootstore.Close()
+		})
+	}
+
+	if !o.TxnProvider.HasValue() {
+		o.TxnProvider = immutable.Some[store.TxnSource](&inMemoryTxnSource{store: o.Rootstore.Value()})
+	}
+
+	if !o.PoolSize.HasValue() {
+		o.PoolSize = immutable.Some(DefaultPoolSize)
+	}
+
+	if !o.Runtime.HasValue() {
+		o.Runtime = immutable.Some(runtimes.Default())
+	}
+
+	if !o.BlockstoreNamespace.HasValue() {
+		o.BlockstoreNamespace = immutable.Some("b/")
+	}
+
+	node := &Node{
+		onClose: onClose,
+		Options: o,
+		Store: store.New(
+			o.TxnProvider.Value(),
+			o.PoolSize.Value(),
+			o.Runtime.Value(),
+			o.BlockstoreNamespace.Value(),
+		),
+	}
+
+	// Reload on create, if the store is persisted, this will read any Lenses already in the store and
+	// add them to the repository.
+	err := node.Store.Reload(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return node, nil
+}
+
+func (n *Node) Close() error {
+	for _, closer := range n.onClose {
+		err := closer()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

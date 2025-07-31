@@ -24,13 +24,7 @@ type explicitTxnRepository struct {
 var _ Repository = (*implicitTxnRepository)(nil)
 var _ Repository = (*explicitTxnRepository)(nil)
 
-func (r *implicitTxnRepository) Init(txnSource TxnSource) {
-	r.db = txnSource
-}
-
-func (r *explicitTxnRepository) Init(txnSource TxnSource) {}
-
-func (r *explicitTxnRepository) WithTxn(txn Txn) Repository {
+func (r *implicitTxnRepository) WithTxn(txn Txn) Repository {
 	return &explicitTxnRepository{
 		repository: r.repository,
 		txn:        txn,
@@ -38,11 +32,11 @@ func (r *explicitTxnRepository) WithTxn(txn Txn) Repository {
 }
 
 func (r *implicitTxnRepository) Add(ctx context.Context, collectionID string, cfg model.Lens) error {
-	txn, err := r.db.NewTxn(ctx, false)
+	txn, err := r.db.NewTxn(false)
 	if err != nil {
 		return err
 	}
-	defer txn.Discard(ctx)
+	defer txn.Discard()
 	txnCtx := r.repository.getCtx(txn, false)
 
 	err = r.repository.add(txnCtx, collectionID, cfg)
@@ -50,7 +44,7 @@ func (r *implicitTxnRepository) Add(ctx context.Context, collectionID string, cf
 		return err
 	}
 
-	return txn.Commit(ctx)
+	return txn.Commit()
 }
 
 func (r *explicitTxnRepository) Add(ctx context.Context, collectionID string, cfg model.Lens) error {
@@ -62,11 +56,11 @@ func (r *implicitTxnRepository) Transform(
 	src enumerable.Enumerable[Document],
 	collectionID string,
 ) (enumerable.Enumerable[map[string]any], error) {
-	txn, err := r.db.NewTxn(ctx, true)
+	txn, err := r.db.NewTxn(true)
 	if err != nil {
 		return nil, err
 	}
-	defer txn.Discard(ctx)
+	defer txn.Discard()
 	txnCtx := newTxnCtx(txn)
 
 	return r.repository.transform(txnCtx, src, collectionID)
@@ -85,11 +79,11 @@ func (r *implicitTxnRepository) Inverse(
 	src enumerable.Enumerable[Document],
 	collectionID string,
 ) (enumerable.Enumerable[map[string]any], error) {
-	txn, err := r.db.NewTxn(ctx, true)
+	txn, err := r.db.NewTxn(true)
 	if err != nil {
 		return nil, err
 	}
-	defer txn.Discard(ctx)
+	defer txn.Discard()
 	txnCtx := newTxnCtx(txn)
 
 	return r.repository.inverse(txnCtx, src, collectionID)
