@@ -24,13 +24,7 @@ type explicitTxnRepository struct {
 var _ Repository = (*implicitTxnRepository)(nil)
 var _ Repository = (*explicitTxnRepository)(nil)
 
-func (r *implicitTxnRepository) Init(txnSource TxnSource) {
-	r.db = txnSource
-}
-
-func (r *explicitTxnRepository) Init(txnSource TxnSource) {}
-
-func (r *explicitTxnRepository) WithTxn(txn Txn) Repository {
+func (r *implicitTxnRepository) WithTxn(txn Txn) Repository {
 	return &explicitTxnRepository{
 		repository: r.repository,
 		txn:        txn,

@@ -29,12 +29,6 @@ import (
 // Should all instances within the pool be busy when accessing, temporary instances will be spun up
 // on demand.  This is relatively expensive compared to the typical execution cost of a Lens function.
 type Repository interface {
-	// Init initializes the repository with the provided transaction source.
-	//
-	// Transactions are created from the source in order to ensure that partial changes are not applied on
-	// execution of other functions on the [Repository] interface.
-	Init(TxnSource)
-
 	// Add caches the given lenses for the given ID, a reuseable set of wasm instances - the number of instances
 	// created is determined by the `poolSize` parameter provided on repository creation.
 	Add(ctx context.Context, id string, cfg model.Lens) error
@@ -100,8 +94,10 @@ func newTxnCtx(txn Txn) *txnContext {
 func NewRepository(
 	poolSize int,
 	runtime module.Runtime,
+	txnSource TxnSource,
 ) Repository {
 	return &implicitTxnRepository{
+		db: txnSource,
 		repository: &repository{
 			poolSize:          poolSize,
 			runtime:           runtime,
