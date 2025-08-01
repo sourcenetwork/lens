@@ -1,3 +1,3 @@
-module github.com/lens-vm/lens/tests/modules
+module github.com/sourcenetwork/lens/tests/modules
 
-go 1.21
+go 1.23
