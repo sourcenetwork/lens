@@ -3,11 +3,11 @@ module github.com/sourcenetwork/lens/host-go
 go 1.23
 
 require (
-	github.com/bytecodealliance/wasmtime-go/v21 v21.0.0
+	github.com/bytecodealliance/wasmtime-go/v35 v35.0.0
 	github.com/sourcenetwork/immutable v0.3.0
 	github.com/sourcenetwork/lens/tests/modules v0.0.0-00010101000000-000000000000
 	github.com/stretchr/testify v1.10.0
-	github.com/tetratelabs/wazero v1.7.2
+	github.com/tetratelabs/wazero v1.9.0
 	github.com/wasmerio/wasmer-go v1.0.4
 )
 
