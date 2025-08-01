@@ -9,8 +9,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/lens-vm/lens/host-go/config"
 	"github.com/sourcenetwork/immutable/enumerable"
+	"github.com/sourcenetwork/lens/host-go/config"
 )
 
 func main() {

@@ -9,7 +9,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/lens-vm/lens/host-go/engine/module"
+	"github.com/sourcenetwork/lens/host-go/engine/module"
 )
 
 // ReadTypeId returns the type id of the next item from the given reader.

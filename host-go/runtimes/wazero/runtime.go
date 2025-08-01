@@ -14,8 +14,8 @@ import (
 	"io"
 	"math"
 
-	"github.com/lens-vm/lens/host-go/engine/module"
-	"github.com/lens-vm/lens/host-go/engine/pipes"
+	"github.com/sourcenetwork/lens/host-go/engine/module"
+	"github.com/sourcenetwork/lens/host-go/engine/pipes"
 
 	"github.com/tetratelabs/wazero"
 )
@@ -29,7 +29,7 @@ var _ module.Runtime = (*wRuntime)(nil)
 // New creates a new wazero wasm runtime.
 //
 // WARNING: This runtime does not current allow for instance reuse within a single pipeline.
-// Please see https://github.com/lens-vm/lens/issues/71 for more info.
+// Please see https://github.com/sourcenetwork/lens/issues/71 for more info.
 func New() module.Runtime {
 	return &wRuntime{
 		compilationCache: wazero.NewCompilationCache(),

@@ -11,7 +11,7 @@ import (
 	"io"
 	"math"
 
-	"github.com/lens-vm/lens/host-go/engine/module"
+	"github.com/sourcenetwork/lens/host-go/engine/module"
 )
 
 type fromPipe[TSource any, TResult any] struct {

@@ -13,10 +13,10 @@ import (
 	"io"
 	"math"
 
-	"github.com/lens-vm/lens/host-go/engine/module"
-	"github.com/lens-vm/lens/host-go/engine/pipes"
+	"github.com/sourcenetwork/lens/host-go/engine/module"
+	"github.com/sourcenetwork/lens/host-go/engine/pipes"
 
-	"github.com/bytecodealliance/wasmtime-go/v21"
+	"github.com/bytecodealliance/wasmtime-go/v35"
 )
 
 type wRuntime struct {

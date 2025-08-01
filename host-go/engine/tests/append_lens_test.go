@@ -11,9 +11,9 @@ import (
 	"math"
 	"testing"
 
-	"github.com/lens-vm/lens/host-go/engine"
-	"github.com/lens-vm/lens/host-go/engine/module"
 	"github.com/sourcenetwork/immutable/enumerable"
+	"github.com/sourcenetwork/lens/host-go/engine"
+	"github.com/sourcenetwork/lens/host-go/engine/module"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

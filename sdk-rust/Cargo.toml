@@ -4,7 +4,7 @@ description = "An SDK for writing bi-directional, wasm based, LensVM transformat
 version = "0.8.0"
 edition = "2024"
 readme = "../README.md"
-repository = "https://github.com/lens-vm/lens"
+repository = "https://github.com/sourcenetwork/lens"
 license-file = "../LICENSE"
 
 [lib]

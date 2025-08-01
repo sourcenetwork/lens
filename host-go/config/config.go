@@ -5,12 +5,12 @@
 package config
 
 import (
-	"github.com/lens-vm/lens/host-go/config/internal/json"
-	"github.com/lens-vm/lens/host-go/config/model"
-	"github.com/lens-vm/lens/host-go/engine"
-	"github.com/lens-vm/lens/host-go/engine/module"
-	"github.com/lens-vm/lens/host-go/runtimes"
 	"github.com/sourcenetwork/immutable/enumerable"
+	"github.com/sourcenetwork/lens/host-go/config/internal/json"
+	"github.com/sourcenetwork/lens/host-go/config/model"
+	"github.com/sourcenetwork/lens/host-go/engine"
+	"github.com/sourcenetwork/lens/host-go/engine/module"
+	"github.com/sourcenetwork/lens/host-go/runtimes"
 )
 
 // LoadFromFile loads a lens file at the given path and applies it to the provided src.

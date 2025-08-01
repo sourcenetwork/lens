@@ -12,9 +12,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/lens-vm/lens/host-go/engine/module"
-	"github.com/lens-vm/lens/host-go/engine/pipes"
 	"github.com/sourcenetwork/immutable/enumerable"
+	"github.com/sourcenetwork/lens/host-go/engine/module"
+	"github.com/sourcenetwork/lens/host-go/engine/pipes"
 )
 
 // Append appends the given Module Instances to the given source Enumerable, returning the result.
