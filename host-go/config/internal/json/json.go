@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/lens-vm/lens/host-go/config/model"
+	"github.com/sourcenetwork/lens/host-go/config/model"
 )
 
 type Lens struct {

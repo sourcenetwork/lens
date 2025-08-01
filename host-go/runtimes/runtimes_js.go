@@ -1,8 +1,8 @@
 package runtimes
 
 import (
-	"github.com/lens-vm/lens/host-go/engine/module"
-	"github.com/lens-vm/lens/host-go/runtimes/js"
+	"github.com/sourcenetwork/lens/host-go/engine/module"
+	"github.com/sourcenetwork/lens/host-go/runtimes/js"
 )
 
 func Default() module.Runtime {

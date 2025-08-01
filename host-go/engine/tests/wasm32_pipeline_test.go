@@ -7,9 +7,9 @@ package tests
 import (
 	"testing"
 
-	"github.com/lens-vm/lens/host-go/engine"
-	"github.com/lens-vm/lens/tests/modules"
 	"github.com/sourcenetwork/immutable/enumerable"
+	"github.com/sourcenetwork/lens/host-go/engine"
+	"github.com/sourcenetwork/lens/tests/modules"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

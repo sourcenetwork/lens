@@ -3,7 +3,7 @@ package integration
 import (
 	"testing"
 
-	"github.com/lens-vm/lens/tests/modules"
+	"github.com/sourcenetwork/lens/tests/modules"
 )
 
 // Rust is very aggressive in cleaning up memory, and we had a bug where lenses would fail if the input

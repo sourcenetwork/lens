@@ -3,7 +3,7 @@ package integration
 import (
 	"testing"
 
-	"github.com/lens-vm/lens/tests/modules"
+	"github.com/sourcenetwork/lens/tests/modules"
 )
 
 func TestWithModulesWithNormalizeWithParams(t *testing.T) {

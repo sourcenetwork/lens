@@ -5,8 +5,8 @@
 package tests
 
 import (
-	"github.com/lens-vm/lens/host-go/engine/module"
-	"github.com/lens-vm/lens/host-go/runtimes"
+	"github.com/sourcenetwork/lens/host-go/engine/module"
+	"github.com/sourcenetwork/lens/host-go/runtimes"
 )
 
 type type1 struct {

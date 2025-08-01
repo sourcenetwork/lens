@@ -3,8 +3,8 @@
 package runtimes
 
 import (
-	"github.com/lens-vm/lens/host-go/engine/module"
-	"github.com/lens-vm/lens/host-go/runtimes/wazero"
+	"github.com/sourcenetwork/lens/host-go/engine/module"
+	"github.com/sourcenetwork/lens/host-go/runtimes/wazero"
 )
 
 func Default() module.Runtime {

@@ -11,8 +11,8 @@ import (
 	"io"
 	"math"
 
-	"github.com/lens-vm/lens/host-go/engine/module"
 	"github.com/sourcenetwork/immutable/enumerable"
+	"github.com/sourcenetwork/lens/host-go/engine/module"
 )
 
 type fromSource[TSource any, TResult any] struct {
