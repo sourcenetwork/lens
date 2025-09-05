@@ -15,6 +15,11 @@ import (
 	"github.com/sourcenetwork/lens/host-go/engine/module"
 )
 
+type TxnRepository interface {
+	Repository
+	WithTxn(txn Txn) Repository
+}
+
 // todo: This file, particularly the `pool` stuff, contains fairly sensitive code that is both
 // cumbersome to fully test with integration/benchmark tests, and can have a significant affect on
 // the users if broken (deadlocks, large performance degradation).  It should have dedicated tests.
@@ -95,7 +100,7 @@ func NewRepository(
 	poolSize int,
 	runtime module.Runtime,
 	txnSource TxnSource,
-) Repository {
+) TxnRepository {
 	return &implicitTxnRepository{
 		db: txnSource,
 		repository: &repository{

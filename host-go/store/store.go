@@ -23,7 +23,6 @@ import (
 	"github.com/sourcenetwork/lens/host-go/config/model"
 	"github.com/sourcenetwork/lens/host-go/engine"
 	"github.com/sourcenetwork/lens/host-go/engine/module"
-	"github.com/sourcenetwork/lens/host-go/repository"
 )
 
 type Store interface { // todo - rename these
@@ -31,27 +30,28 @@ type Store interface { // todo - rename these
 	List(ctx context.Context) (map[cid.Cid]model.Lens, error)
 }
 
+type TxnStore interface { // todo - rename these
+	Store
+	WithTxn(txn Txn) Store
+}
+
 type store struct {
-	store      linking.LinkSystem
-	indexstore corekv.ReaderWriter
-	repository repository.Repository
+	//repository repository.TxnRepository
 }
 
 func New(
-	blockstore corekv.ReaderWriter,
-	indexstore corekv.ReaderWriter,
-	txnSrc repository.TxnSource,
+	txnSource PTxnSource,
+	rootstore corekv.ReaderWriter,
 	poolSize int, // should repo be passed in instead?
 	runtime module.Runtime,
-) *store {
-	return &store{
-		store:      makeLinkSystem(blockstore),
-		indexstore: indexstore,
-		repository: repository.NewRepository(poolSize, runtime, txnSrc),
+) *implicitTxnStore {
+	return &implicitTxnStore{
+		store: &store{},
+		db:    NewRoot(txnSource, rootstore, poolSize, runtime),
 	}
 }
 
-func (s *store) Add(ctx context.Context, cfg model.Lens) (cid.Cid, error) {
+func (s *store) Add(ctx context.Context, cfg model.Lens, txn Txn) (cid.Cid, error) {
 	moduleLinks := make([]datamodel.Link, 0, len(cfg.Lenses))
 
 	for _, module := range cfg.Lenses {
@@ -63,7 +63,7 @@ func (s *store) Add(ctx context.Context, cfg model.Lens) (cid.Cid, error) {
 			WasmBytes: wasmBytes,
 		}
 
-		lensLink, err := s.store.Store(linking.LinkContext{Ctx: ctx}, getLinkPrototype(), lensBlock.GenerateNode())
+		lensLink, err := txn.LinkSystem().Store(linking.LinkContext{Ctx: ctx}, getLinkPrototype(), lensBlock.GenerateNode())
 		if err != nil {
 			return cid.Undef, err
 		}
@@ -90,7 +90,7 @@ func (s *store) Add(ctx context.Context, cfg model.Lens) (cid.Cid, error) {
 			Lens:      lensLink,
 		}
 
-		moduleLink, err := s.store.Store(linking.LinkContext{Ctx: ctx}, getLinkPrototype(), moduleBlock.GenerateNode())
+		moduleLink, err := txn.LinkSystem().Store(linking.LinkContext{Ctx: ctx}, getLinkPrototype(), moduleBlock.GenerateNode())
 		if err != nil {
 			return cid.Undef, err
 		}
@@ -101,16 +101,16 @@ func (s *store) Add(ctx context.Context, cfg model.Lens) (cid.Cid, error) {
 	configBlock := ConfigBlock{
 		Modules: moduleLinks,
 	}
-	configLink, err := s.store.Store(linking.LinkContext{Ctx: ctx}, getLinkPrototype(), configBlock.GenerateNode())
+	configLink, err := txn.LinkSystem().Store(linking.LinkContext{Ctx: ctx}, getLinkPrototype(), configBlock.GenerateNode())
 
-	err = s.repository.Add(ctx, configLink.String(), cfg)
+	err = txn.Repository().Add(ctx, configLink.String(), cfg)
 	if err != nil {
 		return cid.Undef, err
 	}
 
 	// Index the ids of the config blocks so that we can rapidly access them without having to scan the entire blockstore
 	// This is especially important if the blockstore is provided by users and may contain blocks not owned by LensVM.
-	err = s.indexstore.Set(ctx, []byte(configLink.Binary()), []byte{})
+	err = txn.Indexstore().Set(ctx, []byte(configLink.Binary()), []byte{})
 	if err != nil {
 		return cid.Undef, err
 	}
@@ -123,8 +123,8 @@ func (s *store) Add(ctx context.Context, cfg model.Lens) (cid.Cid, error) {
 	return configCID, nil
 }
 
-func (s *store) List(ctx context.Context) (map[cid.Cid]model.Lens, error) {
-	iter, err := s.indexstore.Iterator(
+func (s *store) List(ctx context.Context, txn Txn) (map[cid.Cid]model.Lens, error) {
+	iter, err := txn.Indexstore().Iterator(
 		ctx,
 		corekv.IterOptions{
 			KeysOnly: true,
@@ -147,13 +147,13 @@ func (s *store) List(ctx context.Context) (map[cid.Cid]model.Lens, error) {
 		configKey := iter.Key()
 		_, configCID, err := cid.CidFromBytes(configKey)
 
-		configNode, err := s.store.Load(linking.LinkContext{Ctx: ctx}, cidlink.Link{Cid: configCID}, ConfigBlockSchemaPrototype)
+		configNode, err := txn.LinkSystem().Load(linking.LinkContext{Ctx: ctx}, cidlink.Link{Cid: configCID}, ConfigBlockSchemaPrototype)
 		if err != nil {
 			return nil, err
 		}
 
 		configBlock := bindnode.Unwrap(configNode).(*ConfigBlock)
-		config, err := configBlock.ToLensModel(ctx, s.store)
+		config, err := configBlock.ToLensModel(ctx, txn.LinkSystem())
 		if err != nil {
 			return nil, err
 		}
@@ -167,36 +167,39 @@ func (s *store) Transform(
 	ctx context.Context,
 	source enumerable.Enumerable[Document],
 	id string,
+	txn Txn,
 ) (enumerable.Enumerable[Document], error) {
-	return s.repository.Transform(ctx, source, id)
+	return txn.Repository().Transform(ctx, source, id)
 }
 
 func (s *store) Inverse(
 	ctx context.Context,
 	source enumerable.Enumerable[Document],
 	id string,
+	txn Txn,
 ) (enumerable.Enumerable[Document], error) {
-	return s.repository.Inverse(ctx, source, id)
+	return txn.Repository().Inverse(ctx, source, id)
 }
 
-func (s *store) Reload(ctx context.Context) error {
-	lenses, err := s.List(ctx)
-	if err != nil {
-		return err
-	}
-
-	for cid, lens := range lenses {
-		err = s.repository.Add(ctx, cid.String(), lens)
+/*
+	func (s *store) Reload(ctx context.Context) error {
+		lenses, err := s.List(ctx)
 		if err != nil {
 			return err
 		}
+
+		for cid, lens := range lenses {
+			err = s.repository.Add(ctx, cid.String(), lens)
+			if err != nil {
+				return err
+			}
+		}
+
+		// todo - old stuff will be overwritten by `Add`, but keys that no longer exist will continue to do so in the repo
+
+		return nil
 	}
-
-	// todo - old stuff will be overwritten by `Add`, but keys that no longer exist will continue to do so in the repo
-
-	return nil
-}
-
+*/
 type blockstore struct {
 	store corekv.ReaderWriter
 }
@@ -222,7 +225,7 @@ func (s *blockstore) Put(ctx context.Context, key string, content []byte) error 
 	return s.store.Set(ctx, []byte(key), content)
 }
 
-func makeLinkSystem(store corekv.ReaderWriter) linking.LinkSystem {
+func makeLinkSystem(store corekv.ReaderWriter) *linking.LinkSystem {
 	blockstore := newBlockstore(store)
 
 	linkSys := cidlink.DefaultLinkSystem()
@@ -230,7 +233,7 @@ func makeLinkSystem(store corekv.ReaderWriter) linking.LinkSystem {
 	linkSys.SetReadStorage(blockstore)
 	linkSys.TrustedStorage = true // todo - is needed?
 
-	return linkSys
+	return &linkSys
 }
 
 func getLinkPrototype() cidlink.LinkPrototype {

@@ -155,7 +155,7 @@ func (b *ConfigBlock) GenerateNode() ipld.Node {
 	return bindnode.Wrap(b, ConfigBlockSchema).Representation()
 }
 
-func (b *ConfigBlock) ToLensModel(ctx context.Context, linkSys linking.LinkSystem) (model.Lens, error) {
+func (b *ConfigBlock) ToLensModel(ctx context.Context, linkSys *linking.LinkSystem) (model.Lens, error) {
 	result := model.Lens{}
 	for _, moduleLink := range b.Modules {
 		moduleNode, err := linkSys.Load(ipld.LinkContext{Ctx: ctx}, moduleLink, ModuleBlockSchemaPrototype)

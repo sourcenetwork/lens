@@ -8,10 +8,12 @@ import (
 	"context"
 	"sync/atomic"
 
+	//badgerds "github.com/dgraph-io/badger/v4"
 	"github.com/ipfs/go-cid"
 	"github.com/sourcenetwork/corekv"
 	"github.com/sourcenetwork/corekv/memory"
-	"github.com/sourcenetwork/corekv/namespace"
+
+	//"github.com/sourcenetwork/corekv/badger"
 	"github.com/sourcenetwork/immutable"
 	"github.com/sourcenetwork/lens/host-go/config/model"
 	"github.com/sourcenetwork/lens/host-go/repository"
@@ -26,8 +28,7 @@ type NodeI interface { // todo - rename
 
 type options struct {
 	rootstore   immutable.Option[corekv.ReaderWriter] // todo - should this be a mandatory param?
-	blockstore  immutable.Option[corekv.ReaderWriter] // todo - allowing seperate root/blockstores create txn complication that we may want to avoid for now
-	txnProvider immutable.Option[repository.TxnSource]
+	txnProvider immutable.Option[store.PTxnSource]
 }
 
 // Option is a funtion that sets a config value on the db.
@@ -50,28 +51,25 @@ func New(ctx context.Context, opts ...Option) (*Node, error) {
 	}
 
 	if !o.rootstore.HasValue() {
-		//store, err := badger.NewDatastore("", badgerds.DefaultOptions("").WithInMemory(true)) // todo - we must close if we own the store
-		store := memory.NewDatastore(ctx)
-		/*if err != nil {
-			return nil, err
-		}*/
+		/*
+			rootstore, err := badger.NewDatastore("", badgerds.DefaultOptions("").WithInMemory(true)) // todo - we must close if we own the store
+			if err != nil {
+				return nil, err
+			}
+		*/
+		rootstore := memory.NewDatastore(ctx)
 
 		if !o.txnProvider.HasValue() {
-			o.txnProvider = immutable.Some[repository.TxnSource](&inMemoryTxnSource{store: store})
+			o.txnProvider = immutable.Some[store.PTxnSource](&inMemoryTxnSource{store: rootstore})
 		}
 
-		o.rootstore = immutable.Some[corekv.ReaderWriter](store)
-	}
-
-	if !o.blockstore.HasValue() {
-		o.blockstore = immutable.Some[corekv.ReaderWriter](namespace.Wrap(o.rootstore.Value(), []byte("b/"))) // todo - const
+		o.rootstore = immutable.Some[corekv.ReaderWriter](rootstore)
 	}
 
 	node := &Node{
 		store: store.New(
-			o.blockstore.Value(),
-			namespace.Wrap(o.rootstore.Value(), []byte("i/")), // todo - const
 			o.txnProvider.Value(),
+			o.rootstore.Value(),
 			5,
 			runtimes.Default(),
 		), // todo - opts
@@ -93,20 +91,32 @@ type inMemoryTxnSource struct {
 	store         corekv.TxnStore
 }
 
-var _ repository.TxnSource = (*inMemoryTxnSource)(nil)
+var _ store.PTxnSource = (*inMemoryTxnSource)(nil)
 
-func (s *inMemoryTxnSource) NewTxn(ctx context.Context, readonly bool) (repository.Txn, error) {
+func (s *inMemoryTxnSource) NewTxn(readonly bool) (store.PTxn, error) {
 	txnID := atomic.AddUint64(&s.previousTxnID, 1)
 
 	return &txnWrapper{
 		id:  txnID,
-		txn: s.store.NewTxn(readonly),
+		Txn: s.store.NewTxn(readonly),
 	}, nil
 }
 
+/*
+func (s *inMemoryTxnSource) NewTxn(readonly bool) (repository.Txn, error) {
+	txnID := atomic.AddUint64(&s.previousTxnID, 1)
+
+	return &txnWrapper{
+		id:  txnID,
+		Txn: s.store.NewTxn(readonly),
+	}, nil
+}
+*/
+
 type txnWrapper struct {
-	id  uint64
-	txn corekv.Txn
+	corekv.Txn
+
+	id uint64
 
 	successFns []func()
 	errorFns   []func()
@@ -122,10 +132,10 @@ func (t *txnWrapper) ID() uint64 {
 // Commit finalizes a transaction, attempting to commit it to the Datastore.
 // May return an error if the transaction has gone stale. The presence of an
 // error is an indication that the data was not committed to the Datastore.
-func (t *txnWrapper) Commit(ctx context.Context) error {
+func (t *txnWrapper) Commit() error {
 	var fns []func()
 
-	err := t.txn.Commit()
+	err := t.Txn.Commit()
 	if err != nil {
 		fns = t.errorFns
 	} else {
@@ -143,8 +153,8 @@ func (t *txnWrapper) Commit(ctx context.Context) error {
 // them to the underlying Datastore. Any calls made to Discard after Commit
 // has been successfully called will have no effect on the transaction and
 // state of the Datastore, making it safe to defer.
-func (t *txnWrapper) Discard(ctx context.Context) {
-	t.txn.Discard()
+func (t *txnWrapper) Discard() {
+	t.Txn.Discard()
 
 	for _, fn := range t.discardFns {
 		fn()

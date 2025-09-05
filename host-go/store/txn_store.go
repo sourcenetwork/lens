@@ -9,17 +9,16 @@ import (
 
 	cid "github.com/ipfs/go-cid"
 	"github.com/sourcenetwork/lens/host-go/config/model"
-	"github.com/sourcenetwork/lens/host-go/repository"
 )
 
 type implicitTxnStore struct {
-	repository *store
-	db         repository.TxnSource
+	store *store
+	db    Root
 }
 
 type explicitTxnStore struct {
-	repository *store
-	txn        repository.Txn
+	store *store
+	txn   Txn
 }
 
 var _ Store = (*implicitTxnStore)(nil)
@@ -27,16 +26,47 @@ var _ Store = (*explicitTxnStore)(nil)
 
 // todo - how to handle the txnsource/txnctx from here??
 
-func (s *implicitTxnStore) Add(ctx context.Context, cfg model.Lens) (cid.Cid, error) {
+func (s *implicitTxnStore) WithTxn(txn Txn) *explicitTxnStore {
+	return &explicitTxnStore{
+		store: s.store,
+		txn:   txn,
+	}
+}
 
+func (s *implicitTxnStore) Add(ctx context.Context, cfg model.Lens) (cid.Cid, error) {
+	txn, err := s.db.NewTxn(false)
+	if err != nil {
+		return cid.Undef, err
+	}
+	defer txn.Discard()
+
+	id, err := s.store.Add(ctx, cfg, txn)
+	if err != nil {
+		return cid.Undef, err
+	}
+
+	err = txn.Commit()
+	if err != nil {
+		return cid.Undef, err
+	}
+
+	return id, nil
 }
 
 func (s *explicitTxnStore) Add(ctx context.Context, cfg model.Lens) (cid.Cid, error) {
-
+	return s.store.Add(ctx, cfg, s.txn)
 }
 
 func (s *implicitTxnStore) List(ctx context.Context) (map[cid.Cid]model.Lens, error) {
+	txn, err := s.db.NewTxn(true)
+	if err != nil {
+		return nil, err
+	}
+	defer txn.Discard()
+
+	return s.store.List(ctx, txn)
 }
 
 func (s *explicitTxnStore) List(ctx context.Context) (map[cid.Cid]model.Lens, error) {
+	return s.store.List(ctx, s.txn)
 }
