@@ -31,7 +31,7 @@ type txn struct {
 // repositoryTxnSource wraps a `TxnSource` so that it satisfies the `repository.TxnSource`
 // interface and can be passed through.
 //
-// Without this either this or the `repository` package would require an unnecessarily
+// Without this, either the `store` package or the `repository` package would require an unnecessarily
 // enlarged Txn interface, hindering consumption.
 type repositoryTxnSource struct {
 	src TxnSource
