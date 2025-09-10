@@ -36,7 +36,7 @@ func TestAddList(t *testing.T) {
 			},
 			&action.List{
 				Expected: map[string]model.Lens{
-					"bafyreibtjagnf2pgjgteonxcwigifwfylqgbrrn7f5zcx6tsqi7v3evgqq": {
+					"{{.LensIDs0}}": {
 						Lenses: []model.LensModule{
 							{
 								Path: "data://" + string(wasm),

@@ -21,6 +21,11 @@ var _ Action = (*List)(nil)
 var _ Stateful = (*List)(nil)
 
 func (a *List) Execute() {
+	for key, model := range a.Expected {
+		delete(a.Expected, key)
+		a.Expected[replace(a.s, key)] = model
+	}
+
 	result, err := a.s.Store.List(a.s.Ctx)
 	require.NoError(a.s.T, err)
 

@@ -19,6 +19,8 @@ var _ Action = (*Add)(nil)
 var _ Stateful = (*Add)(nil)
 
 func (a *Add) Execute() {
-	_, err := a.s.Store.Add(a.s.Ctx, a.Config)
+	id, err := a.s.Store.Add(a.s.Ctx, a.Config)
 	require.NoError(a.s.T, err)
+
+	a.s.LensIDs = append(a.s.LensIDs, id)
 }
