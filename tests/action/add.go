@@ -5,6 +5,10 @@
 package action
 
 import (
+	"net/url"
+	"os"
+	"strings"
+
 	"github.com/sourcenetwork/lens/host-go/config/model"
 	"github.com/stretchr/testify/require"
 )
@@ -23,4 +27,20 @@ func (a *Add) Execute() {
 	require.NoError(a.s.T, err)
 
 	a.s.LensIDs = append(a.s.LensIDs, id)
+
+	for _, cfg := range a.Config.Lenses {
+		if strings.HasPrefix(cfg.Path, "data://") {
+			a.s.WasmBytes = append(a.s.WasmBytes, []byte(strings.TrimPrefix(cfg.Path, "data://")))
+		} else if strings.HasPrefix(cfg.Path, "file://") {
+			parsed, err := url.Parse(cfg.Path)
+			require.NoError(a.s.T, err)
+
+			wasm, err := os.ReadFile(parsed.Path)
+			require.NoError(a.s.T, err)
+
+			a.s.WasmBytes = append(a.s.WasmBytes, wasm)
+		} else {
+			require.Fail(a.s.T, "add action does not yet support wasm path type")
+		}
+	}
 }

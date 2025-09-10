@@ -23,6 +23,11 @@ var _ Stateful = (*List)(nil)
 func (a *List) Execute() {
 	for key, model := range a.Expected {
 		delete(a.Expected, key)
+
+		for i := range model.Lenses {
+			model.Lenses[i].Path = replace(a.s, model.Lenses[i].Path)
+		}
+
 		a.Expected[replace(a.s, key)] = model
 	}
 

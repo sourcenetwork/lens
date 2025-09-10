@@ -20,7 +20,8 @@ type State struct {
 	Node *node.Node
 	Path string
 
-	Store   store.Store
-	Txns    []store.Txn
-	LensIDs []cid.Cid
+	Store     store.Store
+	Txns      []store.Txn
+	LensIDs   []cid.Cid
+	WasmBytes [][]byte
 }

@@ -5,24 +5,15 @@
 package node
 
 import (
-	"net/url"
-	"os"
 	"testing"
 
 	"github.com/sourcenetwork/lens/host-go/config/model"
 	"github.com/sourcenetwork/lens/tests/action"
 	"github.com/sourcenetwork/lens/tests/integration"
 	"github.com/sourcenetwork/lens/tests/modules"
-	"github.com/stretchr/testify/require"
 )
 
 func TestAddList(t *testing.T) {
-	parsed, err := url.Parse(modules.WasmPath1)
-	require.NoError(t, err)
-
-	wasm, err := os.ReadFile(parsed.Path)
-	require.NoError(t, err)
-
 	test := &integration.Test{
 		Actions: []action.Action{
 			&action.Add{
@@ -39,7 +30,7 @@ func TestAddList(t *testing.T) {
 					"{{.LensIDs0}}": {
 						Lenses: []model.LensModule{
 							{
-								Path: "data://" + string(wasm),
+								Path: "{{.WasmBytes0}}",
 							},
 						},
 					},

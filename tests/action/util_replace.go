@@ -29,6 +29,14 @@ var templateDataGenerators = map[string]func(*state.State) map[string]string{
 
 		return res
 	},
+	"WasmBytes": func(s *state.State) map[string]string {
+		res := map[string]string{}
+		for i, bytes := range s.WasmBytes {
+			res["WasmBytes"+strconv.Itoa(i)] = "data://" + string(bytes)
+		}
+
+		return res
+	},
 }
 
 // replace returns a new string with any templating placholders (see "text/template") with data drawn
