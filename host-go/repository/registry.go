@@ -19,7 +19,10 @@ import (
 type TxnRepository interface {
 	Repository
 
-	// NewTxn returns a new transaction.
+	// WithTxn returns a new `Repository` instance scoped to the given transaction.
+	//
+	// Upon transaction commit any changes made via the returned value will be applied
+	// to this `TxnRepository`.
 	WithTxn(txn Txn) Repository
 }
 
