@@ -15,6 +15,7 @@ import (
 	"github.com/sourcenetwork/lens/host-go/engine/module"
 )
 
+// TxnRepository represents a repository that may be scoped to a transaction.
 type TxnRepository interface {
 	Repository
 
