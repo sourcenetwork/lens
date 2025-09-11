@@ -109,6 +109,10 @@ func TestWasm32PipelineFromSourceAsFullToModuleAsFull(t *testing.T) {
 
 func TestWasm32PipelineFromSourceAsFullToModuleAsFullToModuleAsFull(t *testing.T) {
 	runtime := newRuntime()
+	if runtime.Name() == "wazero" {
+		// This is due to https://github.com/sourcenetwork/lens/issues/71
+		t.Skipf("runtime does not support instance reuse")
+	}
 
 	module1, err := engine.NewModule(runtime, modules.WasmPath1)
 	if err != nil {
@@ -220,6 +224,10 @@ func TestWasm32PipelineFromSourceAsFullToModuleAsFullToASModuleAsFull(t *testing
 
 func TestWasm32PipelineFromSourceAsFullToModuleAsFullToModuleAsFullWithSingleAppend(t *testing.T) {
 	runtime := newRuntime()
+	if runtime.Name() == "wazero" {
+		// This is due to https://github.com/sourcenetwork/lens/issues/71
+		t.Skipf("runtime does not support instance reuse")
+	}
 
 	module1, err := engine.NewModule(runtime, modules.WasmPath1)
 	if err != nil {

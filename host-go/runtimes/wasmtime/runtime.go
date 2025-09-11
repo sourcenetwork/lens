@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//go:build !js
+//go:build !windows && !js
 
 package wasmtime
 
@@ -18,6 +18,8 @@ import (
 
 	"github.com/bytecodealliance/wasmtime-go/v35"
 )
+
+const Name string = "wasmtime"
 
 type wRuntime struct {
 	store *wasmtime.Store
@@ -40,6 +42,10 @@ type wModule struct {
 }
 
 var _ module.Module = (*wModule)(nil)
+
+func (rt *wRuntime) Name() string {
+	return Name
+}
 
 func (rt *wRuntime) NewModule(wasmBytes []byte) (module.Module, error) {
 	module, err := wasmtime.NewModule(rt.store.Engine, wasmBytes)

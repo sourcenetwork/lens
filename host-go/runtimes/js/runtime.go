@@ -19,6 +19,8 @@ import (
 	"github.com/sourcenetwork/lens/host-go/engine/pipes"
 )
 
+const Name string = "js"
+
 type wRuntime struct {
 	webAssembly js.Value
 }
@@ -31,6 +33,10 @@ func New() module.Runtime {
 	// https://developer.mozilla.org/en-US/docs/WebAssembly/JavaScript_interface
 	webAssembly := js.Global().Get("WebAssembly")
 	return &wRuntime{webAssembly}
+}
+
+func (rt *wRuntime) Name() string {
+	return Name
 }
 
 func (rt *wRuntime) NewModule(wasmBytes []byte) (module.Module, error) {

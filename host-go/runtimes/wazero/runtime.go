@@ -20,6 +20,8 @@ import (
 	"github.com/tetratelabs/wazero"
 )
 
+const Name string = "wazero"
+
 type wRuntime struct {
 	compilationCache wazero.CompilationCache
 }
@@ -42,6 +44,10 @@ type wModule struct {
 }
 
 var _ module.Module = (*wModule)(nil)
+
+func (rt *wRuntime) Name() string {
+	return Name
+}
 
 func (rt *wRuntime) NewModule(wasmBytes []byte) (module.Module, error) {
 	return &wModule{

@@ -18,6 +18,8 @@ import (
 	"github.com/wasmerio/wasmer-go/wasmer"
 )
 
+const Name string = "wasmer"
+
 type wRuntime struct {
 	store *wasmer.Store
 }
@@ -38,6 +40,10 @@ type wModule struct {
 }
 
 var _ module.Module = (*wModule)(nil)
+
+func (rt *wRuntime) Name() string {
+	return Name
+}
 
 func (rt *wRuntime) NewModule(wasmBytes []byte) (module.Module, error) {
 	module, err := wasmer.NewModule(rt.store, wasmBytes)
