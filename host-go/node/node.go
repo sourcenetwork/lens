@@ -10,9 +10,11 @@ import (
 
 	badgerds "github.com/dgraph-io/badger/v4"
 	"github.com/sourcenetwork/corekv"
+	sourceP2P "github.com/sourcenetwork/p2p"
 
 	"github.com/sourcenetwork/corekv/badger"
 	"github.com/sourcenetwork/immutable"
+	"github.com/sourcenetwork/lens/host-go/p2p"
 	"github.com/sourcenetwork/lens/host-go/runtimes"
 	"github.com/sourcenetwork/lens/host-go/store"
 )
@@ -23,6 +25,7 @@ type Node struct {
 	onClose []closer
 	Options Options
 	Store   store.TxnStore
+	P2P     immutable.Option[*p2p.P2P]
 }
 
 func New(ctx context.Context, opts ...Option) (*Node, error) {
@@ -70,6 +73,35 @@ func New(ctx context.Context, opts ...Option) (*Node, error) {
 		o.BlockstoreNamespace = immutable.Some("b/")
 	}
 
+	if !o.IndexstoreNamespace.HasValue() {
+		o.IndexstoreNamespace = immutable.Some("i/")
+	}
+
+	var p2pSys immutable.Option[*p2p.P2P]
+	if !o.DisableP2P {
+		var host p2p.Host
+		if o.P2P.HasValue() {
+			host = o.P2P.Value()
+		} else {
+			p2pOptions := append(
+				o.P2POptions,
+				sourceP2P.WithBlockstoreNamespace(o.BlockstoreNamespace.Value()),
+				sourceP2P.WithRootstore(o.Rootstore.Value()),
+			)
+
+			var err error
+			host, err = sourceP2P.NewPeer(
+				ctx,
+				p2pOptions...,
+			)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		p2pSys = immutable.Some(p2p.New(host, o.Rootstore.Value(), o.IndexstoreNamespace.Value()))
+	}
+
 	node := &Node{
 		onClose: onClose,
 		Options: o,
@@ -78,7 +110,9 @@ func New(ctx context.Context, opts ...Option) (*Node, error) {
 			o.PoolSize.Value(),
 			o.Runtime.Value(),
 			o.BlockstoreNamespace.Value(),
+			o.IndexstoreNamespace.Value(),
 		),
+		P2P: p2pSys,
 	}
 
 	// Reload on create, if the store is persisted, this will read any Lenses already in the store and

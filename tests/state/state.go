@@ -17,11 +17,16 @@ type State struct {
 	Ctx context.Context
 	T   testing.TB
 
+	Nodes []*NodeInfo
+
+	LensIDs   []cid.Cid
+	WasmBytes [][]byte
+}
+
+type NodeInfo struct {
 	Node *node.Node
 	Path string
 
-	Store     store.Store
-	Txns      []store.Txn
-	LensIDs   []cid.Cid
-	WasmBytes [][]byte
+	Store store.Store
+	Txns  []store.Txn
 }

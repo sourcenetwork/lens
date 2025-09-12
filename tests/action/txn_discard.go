@@ -5,7 +5,7 @@
 package action
 
 type TxnDiscard struct {
-	stateful
+	Nodeful
 
 	TxnIndex int
 }
@@ -17,7 +17,9 @@ func DiscardTxn() *TxnDiscard {
 }
 
 func (a *TxnDiscard) Execute() {
-	txn := a.s.Txns[a.TxnIndex]
+	for _, n := range a.Nodes() {
+		txn := n.Txns[a.TxnIndex]
 
-	txn.Discard()
+		txn.Discard()
+	}
 }

@@ -12,7 +12,7 @@ import (
 
 // AddSchema is an action that will add the given GQL schema to the Defra nodes.
 type List struct {
-	stateful
+	Nodeful
 
 	Expected map[string]model.Lens
 }
@@ -21,9 +21,6 @@ var _ Action = (*List)(nil)
 var _ Stateful = (*List)(nil)
 
 func (a *List) Execute() {
-	result, err := a.s.Store.List(a.s.Ctx)
-	require.NoError(a.s.T, err)
-
 	expected := map[string]model.Lens{}
 	for key, value := range a.Expected {
 		newModel := model.Lens{
@@ -37,12 +34,17 @@ func (a *List) Execute() {
 		expected[replace(a.s, key)] = newModel
 	}
 
-	// Convert the result keys to strings for greater test readibilty - defining tests
-	// with `cid.Cid`s is cumbersome, and the error on failure is not as nice.
-	resultStringified := make(map[string]model.Lens, len(result))
-	for cid, lens := range result {
-		resultStringified[cid.String()] = lens
-	}
+	for _, n := range a.Nodes() {
+		result, err := n.Store.List(a.s.Ctx)
+		require.NoError(a.s.T, err)
 
-	require.Equal(a.s.T, expected, resultStringified)
+		// Convert the result keys to strings for greater test readibilty - defining tests
+		// with `cid.Cid`s is cumbersome, and the error on failure is not as nice.
+		resultStringified := make(map[string]model.Lens, len(result))
+		for cid, lens := range result {
+			resultStringified[cid.String()] = lens
+		}
+
+		require.Equal(a.s.T, expected, resultStringified)
+	}
 }

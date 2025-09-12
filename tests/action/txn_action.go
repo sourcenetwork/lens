@@ -13,7 +13,7 @@ import (
 // Executing this TxnAction will execute the given action within the scope
 // of the given transaction.
 type TxnAction[T Action] struct {
-	stateful
+	Nodeful
 
 	TxnIndex int
 	Action   T
@@ -50,16 +50,17 @@ func (a *TxnAction[T]) SetState(s *state.State) {
 }
 
 func (a *TxnAction[T]) Execute() {
-	originalStore := a.s.Store
-	defer func() {
+	for _, n := range a.Nodes() {
+		originalStore := n.Store
+
+		// Replace the active store with the transaction, allowing the inner action
+		// to act on the transaction without needing to be aware of it.
+		n.Store = n.Node.Store.WithTxn(n.Txns[a.TxnIndex])
+
+		a.Action.Execute()
+
 		// Make sure the original store is restored after executing otherwise
 		// subsequent actions will erroneously act on the transaction.
-		a.s.Store = originalStore
-	}()
-
-	// Replace the active store with the transaction, allowing the inner action
-	// to act on the transaction without needing to be aware of it.
-	a.s.Store = a.s.Node.Store.WithTxn(a.s.Txns[a.TxnIndex])
-
-	a.Action.Execute()
+		n.Store = originalStore
+	}
 }

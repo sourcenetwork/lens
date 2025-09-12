@@ -6,6 +6,8 @@ package action
 
 import (
 	"github.com/sourcenetwork/lens/host-go/node"
+	"github.com/sourcenetwork/lens/tests/state"
+	sourceP2P "github.com/sourcenetwork/p2p"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,7 +26,6 @@ func New() *NewNode {
 
 func (a *NewNode) Execute() {
 	path := a.s.T.TempDir()
-	a.s.Path = path
 
 	n, err := node.New(
 		a.s.Ctx,
@@ -32,8 +33,11 @@ func (a *NewNode) Execute() {
 			[]node.Option{
 				// Add the defaults before the options declared by the test to make sure
 				// they are overwritten if need be.
-				node.WithPath(a.s.Path),
+				node.WithPath(path),
 				node.WithPoolSize(1),
+				node.WithP2Poptions(
+					sourceP2P.WithListenAddresses("/ip4/127.0.0.1/tcp/0"),
+				),
 			},
 			a.Options...,
 		)...,
@@ -42,6 +46,12 @@ func (a *NewNode) Execute() {
 		require.NoError(a.s.T, err)
 	}
 
-	a.s.Node = n
-	a.s.Store = n.Store
+	a.s.Nodes = append(
+		a.s.Nodes,
+		&state.NodeInfo{
+			Node:  n,
+			Store: n.Store,
+			Path:  path,
+		},
+	)
 }

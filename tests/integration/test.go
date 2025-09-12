@@ -34,7 +34,7 @@ type Test struct {
 
 func (test *Test) Execute(t testing.TB) {
 	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	multiplier.Skip(t, test.Includes, test.Excludes)

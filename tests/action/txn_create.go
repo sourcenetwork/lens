@@ -12,7 +12,7 @@ import (
 // TxCreate executes the `client tx create` command and appends the returned transaction id
 // to state.Txns.
 type TxnCreate struct {
-	stateful
+	Nodeful
 
 	TxnIndex int
 	ReadOnly bool
@@ -25,13 +25,15 @@ func NewTxn() *TxnCreate {
 }
 
 func (a *TxnCreate) Execute() {
-	txn, err := a.s.Node.Store.NewTxn(a.ReadOnly)
-	require.NoError(a.s.T, err)
+	for _, n := range a.Nodes() {
+		txn, err := n.Node.Store.NewTxn(a.ReadOnly)
+		require.NoError(a.s.T, err)
 
-	if a.TxnIndex >= len(a.s.Txns) {
-		// Expand the slice if needed.
-		a.s.Txns = append(a.s.Txns, make([]store.Txn, a.TxnIndex+1)...)
+		if a.TxnIndex >= len(n.Txns) {
+			// Expand the slice if needed.
+			n.Txns = append(n.Txns, make([]store.Txn, a.TxnIndex+1)...)
+		}
+
+		n.Txns[a.TxnIndex] = txn
 	}
-
-	a.s.Txns[a.TxnIndex] = txn
 }

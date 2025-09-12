@@ -14,7 +14,7 @@ import (
 )
 
 type Add struct {
-	stateful
+	Nodeful
 
 	Config model.Lens
 }
@@ -23,24 +23,26 @@ var _ Action = (*Add)(nil)
 var _ Stateful = (*Add)(nil)
 
 func (a *Add) Execute() {
-	id, err := a.s.Store.Add(a.s.Ctx, a.Config)
-	require.NoError(a.s.T, err)
+	for _, n := range a.Nodes() {
+		id, err := n.Store.Add(a.s.Ctx, a.Config)
+		require.NoError(a.s.T, err)
 
-	a.s.LensIDs = append(a.s.LensIDs, id)
+		a.s.LensIDs = append(a.s.LensIDs, id)
 
-	for _, cfg := range a.Config.Lenses {
-		if strings.HasPrefix(cfg.Path, "data://") {
-			a.s.WasmBytes = append(a.s.WasmBytes, []byte(strings.TrimPrefix(cfg.Path, "data://")))
-		} else if strings.HasPrefix(cfg.Path, "file://") {
-			parsed, err := url.Parse(cfg.Path)
-			require.NoError(a.s.T, err)
+		for _, cfg := range a.Config.Lenses {
+			if strings.HasPrefix(cfg.Path, "data://") {
+				a.s.WasmBytes = append(a.s.WasmBytes, []byte(strings.TrimPrefix(cfg.Path, "data://")))
+			} else if strings.HasPrefix(cfg.Path, "file://") {
+				parsed, err := url.Parse(cfg.Path)
+				require.NoError(a.s.T, err)
 
-			wasm, err := os.ReadFile(parsed.Path)
-			require.NoError(a.s.T, err)
+				wasm, err := os.ReadFile(parsed.Path)
+				require.NoError(a.s.T, err)
 
-			a.s.WasmBytes = append(a.s.WasmBytes, wasm)
-		} else {
-			require.Fail(a.s.T, "add action does not yet support wasm path type")
+				a.s.WasmBytes = append(a.s.WasmBytes, wasm)
+			} else {
+				require.Fail(a.s.T, "add action does not yet support wasm path type")
+			}
 		}
 	}
 }
