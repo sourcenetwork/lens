@@ -19,6 +19,10 @@ func TestWasm32PipelineWithSharedState(t *testing.T) {
 		Name string
 	}
 	runtime := newRuntime()
+	if runtime.Name() == "wazero" {
+		// This is due to https://github.com/sourcenetwork/lens/issues/71
+		t.Skipf("runtime does not support instance reuse")
+	}
 
 	module, err := engine.NewModule(runtime, modules.WasmPath5)
 	if err != nil {

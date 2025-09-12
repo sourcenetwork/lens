@@ -1,4 +1,4 @@
-//go:build !js && !cshared
+//go:build !windows && !js && !cshared
 
 package runtimes
 
