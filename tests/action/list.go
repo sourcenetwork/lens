@@ -21,22 +21,20 @@ var _ Action = (*List)(nil)
 var _ Stateful = (*List)(nil)
 
 func (a *List) Execute() {
-	for key, model := range a.Expected {
-		delete(a.Expected, key)
-
-		for i := range model.Lenses {
-			model.Lenses[i].Path = replace(a.s, model.Lenses[i].Path)
-		}
-
-		a.Expected[replace(a.s, key)] = model
-	}
-
 	result, err := a.s.Store.List(a.s.Ctx)
 	require.NoError(a.s.T, err)
 
-	expected := a.Expected
-	if expected == nil {
-		expected = map[string]model.Lens{}
+	expected := map[string]model.Lens{}
+	for key, value := range a.Expected {
+		newModel := model.Lens{
+			Lenses: make([]model.LensModule, len(value.Lenses)),
+		}
+
+		for i := range value.Lenses {
+			newModel.Lenses[i].Path = replace(a.s, value.Lenses[i].Path)
+		}
+
+		expected[replace(a.s, key)] = newModel
 	}
 
 	// Convert the result keys to strings for greater test readibilty - defining tests
