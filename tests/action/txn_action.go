@@ -13,7 +13,7 @@ import (
 // Executing this TxnAction will execute the given action within the scope
 // of the given transaction.
 type TxnAction[T Action] struct {
-	s *state.State
+	stateful
 
 	TxnIndex int
 	Action   T
