@@ -393,8 +393,16 @@ github.com/smartystreets/goconvey v1.7.2 h1:9RBaZCeXEQ3UselpuwUQHltGVXvdwm6cv1hg
 github.com/smartystreets/goconvey v1.7.2/go.mod h1:Vw0tHAZW6lzCRk3xgdin6fKYcG+G3Pg9vgXWeJpQFMM=
 github.com/sourcegraph/annotate v0.0.0-20160123013949-f4cad6c6324d/go.mod h1:UdhH50NIW0fCiwBSr0co2m7BnFLdv4fQTgdqdJTHFeE=
 github.com/sourcegraph/syntaxhighlight v0.0.0-20170531221838-bd320f5d308e/go.mod h1:HuIsMU8RRBOtsCgI77wP899iHVBQpCmg4ErYMZB+2IA=
-github.com/sourcenetwork/corekv v0.1.2 h1:voT9juLLwNusAQt5k2cVp6EmOin5taH2HJryWL+ZUE0=
-github.com/sourcenetwork/corekv v0.1.2/go.mod h1:H10TM3iQN/ZbEV8QfjbPj8pk65SJ7+dPoLouTw5JfOU=
+github.com/sourcenetwork/corekv v0.2.0 h1:MsW7Vdknm1hL4YRM/xFunvF+Nuk3W6obCqc9rx8CzYk=
+github.com/sourcenetwork/corekv v0.2.0/go.mod h1:nNU7JXCroGG0RtW7rEfu/QqppmN1AfSneOA35MjVeaE=
+github.com/sourcenetwork/corekv/badger v0.0.0-20250917232726-9384d90f13b5 h1:se4QM4S47Bkmzn+yjSlDfRTpuE5OZ40DEC9QoE3jhSE=
+github.com/sourcenetwork/corekv/badger v0.0.0-20250917232726-9384d90f13b5/go.mod h1:VuWiomQoBBe6aW7CwbvUYMS7OHGal/Do+a32Zwig5Ho=
+github.com/sourcenetwork/corekv/blockstore v0.0.0-20250917232726-9384d90f13b5 h1:2tSn6fgDL7JSrbR80vpFyZ6TaBQ9XTnfD2eMk7a/udQ=
+github.com/sourcenetwork/corekv/blockstore v0.0.0-20250917232726-9384d90f13b5/go.mod h1:YOGZjUz+X97HwUCF6RngPxWminJ6deiDxLAl1GxZJPI=
+github.com/sourcenetwork/corekv/memory v0.0.0-20250917232726-9384d90f13b5 h1:UftIWcQmHfUhjsJi9u7v4gynIjo46uMqWceNlkH/AIc=
+github.com/sourcenetwork/corekv/memory v0.0.0-20250917232726-9384d90f13b5/go.mod h1:2vIJDWlvhwyO41tynkCkFFYTYrIsf1QGvAxBqVFV0bI=
+github.com/sourcenetwork/corekv/namespace v0.0.0-20250917232726-9384d90f13b5 h1:6gu4BZD94SyvuuI8XXnaG/c70h+P03jJeUhZMi3eVv4=
+github.com/sourcenetwork/corekv/namespace v0.0.0-20250917232726-9384d90f13b5/go.mod h1:uidxEQZsJ1eqecq1Zn5NipnFAgxL+VyXB6bPGziBewk=
 github.com/sourcenetwork/corelog v0.0.8 h1:jCo0mFBpWrfhUCGzzN3uUtPGyQv3jnITdPO1s2ME3RY=
 github.com/sourcenetwork/corelog v0.0.8/go.mod h1:cMabHgs3kARgYTQeQYSOmaGGP8XMU6sZrHd8LFrL3zA=
 github.com/sourcenetwork/go-libp2p-pubsub-rpc v0.0.14 h1:620zKV4rOn7U5j/WsPkk4SFj0z9/pVV4bBx0BpZQgro=
@@ -427,6 +435,8 @@ github.com/textileio/go-ds-badger3 v0.1.0 h1:q0kBuBmAcRUR3ClMSYlyw0224XeuzjjGinU
 github.com/textileio/go-ds-badger3 v0.1.0/go.mod h1:z8LuXcihtZ91spEaqhEiNGIWx3E59iFq1HZj4gwwGrU=
 github.com/textileio/go-log/v2 v2.1.3-gke-2 h1:YkMA5ua0Cf/X6CkbexInsoJ/HdaHQBlgiv9Yy9hddNM=
 github.com/textileio/go-log/v2 v2.1.3-gke-2/go.mod h1:DwACkjFS3kjZZR/4Spx3aPfSsciyslwUe5bxV8CEU2w=
+github.com/tidwall/btree v1.7.0 h1:L1fkJH/AuEh5zBnnBbmTwQ5Lt+bRJ5A8EWecslvo9iI=
+github.com/tidwall/btree v1.7.0/go.mod h1:twD9XRA5jj9VUQGELzDO4HPQTNJsoWWfYEL+EUQ2cKY=
 github.com/urfave/cli v1.22.10/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
 github.com/viant/assertly v0.4.8/go.mod h1:aGifi++jvCrUaklKEKT0BU95igDNaqkvz+49uaYMPRU=
 github.com/viant/toolbox v0.24.0/go.mod h1:OxMCG57V0PXuIP2HNQrtJf2CjqdmbrOx5EkMILuUhzM=

@@ -10,7 +10,9 @@ require (
 	github.com/ipld/go-ipld-prime v0.21.0
 	github.com/ipld/go-ipld-prime/storage/bsrvadapter v0.0.0-20250821084354-a425e60cd714
 	github.com/multiformats/go-multicodec v0.9.2
-	github.com/sourcenetwork/corekv v0.1.2
+	github.com/sourcenetwork/corekv v0.2.0
+	github.com/sourcenetwork/corekv/badger v0.0.0-20250917232726-9384d90f13b5
+	github.com/sourcenetwork/corekv/namespace v0.0.0-20250917232726-9384d90f13b5
 	github.com/sourcenetwork/immutable v0.3.0
 	github.com/sourcenetwork/lens/tests/modules v0.0.0-20250801165343-50437dee953e
 	github.com/sourcenetwork/p2p v0.0.0-00010101000000-000000000000
@@ -120,6 +122,7 @@ require (
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.54.0 // indirect
 	github.com/quic-go/webtransport-go v0.9.0 // indirect
+	github.com/sourcenetwork/corekv/blockstore v0.0.0-20250917232726-9384d90f13b5 // indirect
 	github.com/sourcenetwork/corelog v0.0.8 // indirect
 	github.com/sourcenetwork/go-libp2p-pubsub-rpc v0.0.14 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
