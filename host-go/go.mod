@@ -13,9 +13,9 @@ require (
 	github.com/sourcenetwork/corekv v0.2.0
 	github.com/sourcenetwork/corekv/badger v0.0.0-20250917232726-9384d90f13b5
 	github.com/sourcenetwork/corekv/namespace v0.0.0-20250917232726-9384d90f13b5
+	github.com/sourcenetwork/go-p2p v0.1.0
 	github.com/sourcenetwork/immutable v0.3.0
 	github.com/sourcenetwork/lens/tests/modules v0.0.0-20250801165343-50437dee953e
-	github.com/sourcenetwork/p2p v0.0.0-00010101000000-000000000000
 	github.com/stretchr/testify v1.11.1
 	github.com/tetratelabs/wazero v1.9.0
 	github.com/wasmerio/wasmer-go v1.0.4
@@ -153,5 +153,3 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.4.1 // indirect
 )
-
-replace github.com/sourcenetwork/p2p => ../../p2p

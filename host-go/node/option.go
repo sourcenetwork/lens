@@ -6,11 +6,11 @@ package node
 
 import (
 	"github.com/sourcenetwork/corekv"
+	sourceP2P "github.com/sourcenetwork/go-p2p"
 	"github.com/sourcenetwork/immutable"
 	"github.com/sourcenetwork/lens/host-go/engine/module"
 	"github.com/sourcenetwork/lens/host-go/p2p"
 	"github.com/sourcenetwork/lens/host-go/store"
-	sourceP2P "github.com/sourcenetwork/p2p"
 )
 
 type Options struct {

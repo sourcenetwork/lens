@@ -10,7 +10,7 @@ import (
 
 	badgerds "github.com/dgraph-io/badger/v4"
 	"github.com/sourcenetwork/corekv"
-	sourceP2P "github.com/sourcenetwork/p2p"
+	sourceP2P "github.com/sourcenetwork/go-p2p"
 
 	"github.com/sourcenetwork/corekv/badger"
 	"github.com/sourcenetwork/immutable"

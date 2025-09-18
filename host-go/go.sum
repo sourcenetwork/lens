@@ -407,6 +407,8 @@ github.com/sourcenetwork/corelog v0.0.8 h1:jCo0mFBpWrfhUCGzzN3uUtPGyQv3jnITdPO1s
 github.com/sourcenetwork/corelog v0.0.8/go.mod h1:cMabHgs3kARgYTQeQYSOmaGGP8XMU6sZrHd8LFrL3zA=
 github.com/sourcenetwork/go-libp2p-pubsub-rpc v0.0.14 h1:620zKV4rOn7U5j/WsPkk4SFj0z9/pVV4bBx0BpZQgro=
 github.com/sourcenetwork/go-libp2p-pubsub-rpc v0.0.14/go.mod h1:jUoQv592uUX1u7QBjAY4C+l24X9ArhPfifOqXpDHz4U=
+github.com/sourcenetwork/go-p2p v0.1.0 h1:1kHhhwZ3DXrqTNvh+QPSwqRpJ7b3U/ecCh+39xriR8U=
+github.com/sourcenetwork/go-p2p v0.1.0/go.mod h1:L7s3gmDkapOnZRFNEQ+InM3JEk6xrv3XtO4c9GaBfFY=
 github.com/sourcenetwork/immutable v0.3.0 h1:gHPtGvLrTBTK5YpDAhMU+u+S8v1F6iYmc3nbZLryMdc=
 github.com/sourcenetwork/immutable v0.3.0/go.mod h1:GD7ceuh/HD7z6cdIwzKK2ctzgZ1qqYFJpsFp+8qYnbI=
 github.com/sourcenetwork/lens/tests/modules v0.0.0-20250801165343-50437dee953e h1:XpL577LUabRSEG1OLt6GBbIKQG/8HxLF1M+EBKbP3gM=
