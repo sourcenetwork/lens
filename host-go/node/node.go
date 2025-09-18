@@ -70,11 +70,11 @@ func New(ctx context.Context, opts ...Option) (*Node, error) {
 	}
 
 	if !o.BlockstoreNamespace.HasValue() {
-		o.BlockstoreNamespace = immutable.Some("b/")
+		o.BlockstoreNamespace = immutable.Some("b")
 	}
 
 	if !o.IndexstoreNamespace.HasValue() {
-		o.IndexstoreNamespace = immutable.Some("i/")
+		o.IndexstoreNamespace = immutable.Some("i")
 	}
 
 	var p2pSys immutable.Option[*p2p.P2P]
