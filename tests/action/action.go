@@ -5,6 +5,7 @@
 package action
 
 import (
+	"github.com/sourcenetwork/immutable"
 	"github.com/sourcenetwork/testo/action"
 
 	"github.com/sourcenetwork/lens/tests/state"
@@ -25,4 +26,18 @@ func (a *stateful) SetState(s *state.State) {
 		a = &stateful{}
 	}
 	a.s = s
+}
+
+type Nodeful struct {
+	stateful
+
+	NodeIndex immutable.Option[int]
+}
+
+func (a *Nodeful) Nodes() []*state.NodeInfo {
+	if a.NodeIndex.HasValue() {
+		return []*state.NodeInfo{a.s.Nodes[a.NodeIndex.Value()]}
+	}
+
+	return a.s.Nodes
 }

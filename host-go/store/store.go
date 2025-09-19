@@ -76,11 +76,13 @@ func New(
 	poolSize int,
 	runtime module.Runtime,
 	blockstoreNamespace string,
+	indexstoreNamespace string,
 ) TxnStore {
 	return &implicitTxnStore{
 		txnSource:           txnSource,
 		repository:          repository.NewRepository(poolSize, runtime, &repositoryTxnSource{src: txnSource}),
 		blockstoreNamespace: blockstoreNamespace,
+		indexstoreNamespace: indexstoreNamespace,
 	}
 }
 
@@ -133,6 +135,9 @@ func list(ctx context.Context, txn *txn) (map[cid.Cid]model.Lens, error) {
 
 		configKey := iter.Key()
 		_, configCID, err := cid.CidFromBytes(configKey)
+		if err != nil {
+			return nil, errors.Join(err, iter.Close())
+		}
 
 		config, err := loadLensModel(ctx, txn.linkSystem, configCID)
 		if err != nil {

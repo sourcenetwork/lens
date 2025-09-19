@@ -19,6 +19,7 @@ type implicitTxnStore struct {
 	repository repository.TxnRepository
 
 	blockstoreNamespace string
+	indexstoreNamespace string
 }
 
 type explicitTxnStore struct {
@@ -51,7 +52,7 @@ func (s *implicitTxnStore) wrapTxn(t Txn) *txn {
 	return &txn{
 		Txn:        t,
 		linkSystem: makeLinkSystem(namespace.Wrap(t, []byte(s.blockstoreNamespace))),
-		indexstore: namespace.Wrap(t, []byte("i/")),
+		indexstore: namespace.Wrap(t, []byte(s.indexstoreNamespace)),
 		repository: s.repository.WithTxn(t),
 	}
 }

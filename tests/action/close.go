@@ -18,6 +18,8 @@ func Close() *CloseNode {
 }
 
 func (a *CloseNode) Execute() {
-	err := a.s.Node.Close()
-	require.NoError(a.s.T, err)
+	for _, n := range a.s.Nodes {
+		err := n.Node.Close()
+		require.NoError(a.s.T, err)
+	}
 }
