@@ -7,8 +7,8 @@ package p2p
 import (
 	"context"
 
-	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/go-cid"
+	"github.com/sourcenetwork/corekv/blockstore"
 )
 
 type BlockAccessFunc = func(ctx context.Context, peerID string, c cid.Cid) bool
@@ -22,15 +22,15 @@ type Host interface {
 	// ID returns the peer ID of the host.
 	ID() string
 	// Addrs returns the host's list of addresses.
-	Addrs() []string
+	Addresses() ([]string, error)
 	// Pubkey return the byte slice representation of the host's public key.
 	Pubkey() ([]byte, error)
 	// Connect tries to connect to the peer with the given peer info.
-	Connect(ctx context.Context, id string, addresses []string) error
+	Connect(ctx context.Context, addresses []string) error
 	// Disconnect will try to disconnect from the peer with the given ID.
 	Disconnect(ctx context.Context, peerID string) error
 	// BlockService returns the host's block service.
-	BlockService() blockservice.BlockService
+	IPLDStore() blockstore.IPLDStore
 	// SetBlockAccessFunc set the function to use to determine if a peer has access to
 	// the requested blocks on the block service.
 	SetBlockAccessFunc(accessFunc BlockAccessFunc)
