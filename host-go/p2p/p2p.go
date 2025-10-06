@@ -7,13 +7,12 @@ package p2p
 import (
 	"context"
 
-	"github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/go-cid"
 	"github.com/ipld/go-ipld-prime/linking"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	"github.com/ipld/go-ipld-prime/node/bindnode"
-	"github.com/ipld/go-ipld-prime/storage/bsrvadapter"
 	"github.com/sourcenetwork/corekv"
+	"github.com/sourcenetwork/corekv/blockstore"
 	"github.com/sourcenetwork/corekv/namespace"
 	"github.com/sourcenetwork/lens/host-go/store"
 )
@@ -41,7 +40,7 @@ func (p *P2P) SyncLens(ctx context.Context, id string) error {
 		return err
 	}
 
-	linkSys := makeLinkSystem(p.Host.BlockService())
+	linkSys := makeLinkSystem(p.Host.IPLDStore())
 
 	configNode, err := linkSys.Load(linking.LinkContext{Ctx: ctx}, cidlink.Link{Cid: cid}, store.ConfigBlockSchemaPrototype)
 	if err != nil {
@@ -75,9 +74,7 @@ func (p *P2P) SyncLens(ctx context.Context, id string) error {
 	return nil
 }
 
-func makeLinkSystem(blockService blockservice.BlockService) linking.LinkSystem {
-	blockStore := &bsrvadapter.Adapter{Wrapped: blockService}
-
+func makeLinkSystem(blockStore blockstore.IPLDStore) linking.LinkSystem {
 	linkSys := cidlink.DefaultLinkSystem()
 	linkSys.SetWriteStorage(blockStore)
 	linkSys.SetReadStorage(blockStore)

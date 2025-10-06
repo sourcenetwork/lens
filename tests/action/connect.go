@@ -19,9 +19,9 @@ var _ Action = (*Connect)(nil)
 var _ Stateful = (*Connect)(nil)
 
 func (a *Connect) Execute() {
-	toP2PID := a.s.Nodes[a.ToNodeIndex].Node.P2P.Value().Host.ID()
-	toP2PAddresses := a.s.Nodes[a.ToNodeIndex].Node.P2P.Value().Host.Addrs()
+	toP2PAddresses, err := a.s.Nodes[a.ToNodeIndex].Node.P2P.Value().Host.Addresses()
+	require.NoError(a.s.T, err)
 
-	err := a.s.Nodes[a.FromNodeIndex].Node.P2P.Value().Host.Connect(a.s.Ctx, toP2PID, toP2PAddresses)
+	err = a.s.Nodes[a.FromNodeIndex].Node.P2P.Value().Host.Connect(a.s.Ctx, toP2PAddresses)
 	require.NoError(a.s.T, err)
 }
