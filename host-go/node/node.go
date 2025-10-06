@@ -57,8 +57,8 @@ func New(ctx context.Context, opts ...Option) (*Node, error) {
 		})
 	}
 
-	if !o.TxnProvider.HasValue() {
-		o.TxnProvider = immutable.Some[store.TxnSource](&inMemoryTxnSource{store: o.Rootstore.Value()})
+	if !o.TxnSource.HasValue() {
+		o.TxnSource = immutable.Some[store.TxnSource](&inMemoryTxnSource{store: o.Rootstore.Value()})
 	}
 
 	if !o.PoolSize.HasValue() {
@@ -106,7 +106,7 @@ func New(ctx context.Context, opts ...Option) (*Node, error) {
 		onClose: onClose,
 		Options: o,
 		Store: store.New(
-			o.TxnProvider.Value(),
+			o.TxnSource.Value(),
 			o.PoolSize.Value(),
 			o.Runtime.Value(),
 			o.BlockstoreNamespace.Value(),
