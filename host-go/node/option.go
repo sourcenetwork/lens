@@ -16,7 +16,7 @@ import (
 type Options struct {
 	Path                immutable.Option[string]
 	Rootstore           immutable.Option[corekv.TxnReaderWriter]
-	TxnProvider         immutable.Option[store.TxnSource]
+	TxnSource           immutable.Option[store.TxnSource]
 	PoolSize            immutable.Option[int]
 	Runtime             immutable.Option[module.Runtime]
 	BlockstoreNamespace immutable.Option[string]
@@ -83,5 +83,11 @@ func WithP2PDisabled(disableP2P bool) Option {
 func WithP2Poptions(opts ...sourceP2P.NodeOpt) Option {
 	return func(opt *Options) {
 		opt.P2POptions = opts
+	}
+}
+
+func WithTxnSource(txnSource store.TxnSource) Option {
+	return func(opt *Options) {
+		opt.TxnSource = immutable.Some(txnSource)
 	}
 }
