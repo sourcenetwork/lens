@@ -16,6 +16,7 @@ import (
 	"github.com/ipld/go-ipld-prime/storage"
 	"github.com/multiformats/go-multicodec"
 	"github.com/sourcenetwork/corekv"
+	"github.com/sourcenetwork/immutable"
 	"github.com/sourcenetwork/immutable/enumerable"
 
 	"github.com/sourcenetwork/lens/host-go/config/model"
@@ -76,12 +77,14 @@ func New(
 	poolSize int,
 	runtime module.Runtime,
 	blockstoreNamespace string,
+	blockstoreChunksize immutable.Option[int],
 	indexstoreNamespace string,
 ) TxnStore {
 	return &implicitTxnStore{
 		txnSource:           txnSource,
 		repository:          repository.NewRepository(poolSize, runtime, &repositoryTxnSource{src: txnSource}),
 		blockstoreNamespace: blockstoreNamespace,
+		blockstoreChunksize: blockstoreChunksize,
 		indexstoreNamespace: indexstoreNamespace,
 	}
 }

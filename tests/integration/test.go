@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	multiplier.Init("LENS_MULTIPLIERS")
+	multiplier.Init("LENS_MULTIPLIERS", "badger-memory")
 }
 
 // Test is a single, self-contained, test.

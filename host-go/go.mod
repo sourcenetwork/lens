@@ -12,6 +12,7 @@ require (
 	github.com/sourcenetwork/corekv/badger v0.2.3
 	github.com/sourcenetwork/corekv/blockstore v0.2.3
 	github.com/sourcenetwork/corekv/namespace v0.2.3
+	github.com/sourcenetwork/corekv/chunk v0.0.0
 	github.com/sourcenetwork/go-p2p v0.1.2
 	github.com/sourcenetwork/immutable v0.3.0
 	github.com/sourcenetwork/lens/tests/modules v0.0.0
@@ -159,3 +160,7 @@ require (
 )
 
 replace github.com/sourcenetwork/lens/tests/modules v0.0.0 => ../tests/modules
+
+replace github.com/sourcenetwork/corekv/chunk v0.0.0 => ../../corekv/chunk
+
+replace github.com/sourcenetwork/go-p2p v0.1.2 => ../../p2p
