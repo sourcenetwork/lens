@@ -3,7 +3,9 @@ module github.com/sourcenetwork/lens/tests/action
 go 1.24.6
 
 require (
-	github.com/sourcenetwork/go-p2p v0.1.2
+	github.com/dgraph-io/badger/v4 v4.8.0
+	github.com/sourcenetwork/corekv/badger v0.2.4
+	github.com/sourcenetwork/go-p2p v0.1.3
 	github.com/sourcenetwork/immutable v0.3.0
 	github.com/sourcenetwork/lens/host-go v0.0.0
 	github.com/sourcenetwork/lens/tests/state v0.0.0
@@ -21,7 +23,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
-	github.com/dgraph-io/badger/v4 v4.8.0 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.3.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/filecoin-project/go-clock v0.1.0 // indirect
@@ -121,10 +122,10 @@ require (
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.55.0 // indirect
 	github.com/quic-go/webtransport-go v0.9.0 // indirect
-	github.com/sourcenetwork/corekv v0.2.3 // indirect
-	github.com/sourcenetwork/corekv/badger v0.2.3 // indirect
-	github.com/sourcenetwork/corekv/blockstore v0.2.3 // indirect
-	github.com/sourcenetwork/corekv/namespace v0.2.3 // indirect
+	github.com/sourcenetwork/corekv v0.2.4 // indirect
+	github.com/sourcenetwork/corekv/blockstore v0.2.4 // indirect
+	github.com/sourcenetwork/corekv/chunk v0.2.4 // indirect
+	github.com/sourcenetwork/corekv/namespace v0.2.4 // indirect
 	github.com/sourcenetwork/corelog v0.0.8 // indirect
 	github.com/sourcenetwork/go-libp2p-pubsub-rpc v0.0.14 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
