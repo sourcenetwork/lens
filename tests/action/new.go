@@ -108,7 +108,7 @@ func (a *NewBadgerMemoryNode) Execute() {
 				// blockstore.
 				//
 				// Comment this option out and run the tests to view/verify the problem.
-				node.WithBlockstoreChunksize(defaultchunksize),
+				node.WithBlockstoreChunkSize(defaultchunksize),
 				node.WithP2Poptions(
 					sourceP2P.WithListenAddresses("/ip4/127.0.0.1/tcp/0"),
 				),

@@ -89,8 +89,8 @@ func New(ctx context.Context, opts ...Option) (*Node, error) {
 				sourceP2P.WithRootstore(o.Rootstore.Value()),
 			)
 
-			if o.BlockstoreChunksize.HasValue() {
-				p2pOptions = append(p2pOptions, sourceP2P.WithBlockstoreChunksize(o.BlockstoreChunksize.Value()))
+			if o.BlockstoreChunkSize.HasValue() {
+				p2pOptions = append(p2pOptions, sourceP2P.WithBlockstoreChunkSize(o.BlockstoreChunkSize.Value()))
 			}
 
 			var err error
@@ -114,7 +114,7 @@ func New(ctx context.Context, opts ...Option) (*Node, error) {
 			o.PoolSize.Value(),
 			o.Runtime.Value(),
 			o.BlockstoreNamespace.Value(),
-			o.BlockstoreChunksize,
+			o.BlockstoreChunkSize,
 			o.IndexstoreNamespace.Value(),
 		),
 		P2P: p2pSys,

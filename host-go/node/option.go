@@ -20,7 +20,7 @@ type Options struct {
 	PoolSize            immutable.Option[int]
 	Runtime             immutable.Option[module.Runtime]
 	BlockstoreNamespace immutable.Option[string]
-	BlockstoreChunksize immutable.Option[int]
+	BlockstoreChunkSize immutable.Option[int]
 	IndexstoreNamespace immutable.Option[string]
 	P2P                 immutable.Option[p2p.Host]
 	DisableP2P          bool
@@ -93,15 +93,15 @@ func WithTxnSource(txnSource store.TxnSource) Option {
 	}
 }
 
-// WithBlockstoreChunksize will wrap the blockstore in a chunkstore with the given chunksize.
+// WithBlockstoreChunkSize will wrap the blockstore in a chunkstore with the given chunksize.
 //
 // This allows the store to hold values of indefinite size, even if the underlying
 // corekv store does not support it (such as badger in-memory store).
 //
 // Setting this to true will reduce read-write speed, but will not affect the running
 // of lenses, only their storage and P2P efficiency.
-func WithBlockstoreChunksize(blockstoreChunksize int) Option {
+func WithBlockstoreChunkSize(blockstoreChunkSize int) Option {
 	return func(opts *Options) {
-		opts.BlockstoreChunksize = immutable.Some(blockstoreChunksize)
+		opts.BlockstoreChunkSize = immutable.Some(blockstoreChunkSize)
 	}
 }
