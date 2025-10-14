@@ -8,11 +8,12 @@ require (
 	github.com/ipfs/go-cid v0.5.0
 	github.com/ipld/go-ipld-prime v0.21.0
 	github.com/multiformats/go-multicodec v0.9.2
-	github.com/sourcenetwork/corekv v0.2.3
-	github.com/sourcenetwork/corekv/badger v0.2.3
-	github.com/sourcenetwork/corekv/blockstore v0.2.3
-	github.com/sourcenetwork/corekv/namespace v0.2.3
-	github.com/sourcenetwork/go-p2p v0.1.2
+	github.com/sourcenetwork/corekv v0.2.4
+	github.com/sourcenetwork/corekv/badger v0.2.4
+	github.com/sourcenetwork/corekv/blockstore v0.2.4
+	github.com/sourcenetwork/corekv/chunk v0.2.4
+	github.com/sourcenetwork/corekv/namespace v0.2.4
+	github.com/sourcenetwork/go-p2p v0.1.3
 	github.com/sourcenetwork/immutable v0.3.0
 	github.com/sourcenetwork/lens/tests/modules v0.0.0
 	github.com/stretchr/testify v1.11.1

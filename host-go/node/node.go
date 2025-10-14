@@ -89,6 +89,10 @@ func New(ctx context.Context, opts ...Option) (*Node, error) {
 				sourceP2P.WithRootstore(o.Rootstore.Value()),
 			)
 
+			if o.BlockstoreChunkSize.HasValue() {
+				p2pOptions = append(p2pOptions, sourceP2P.WithBlockstoreChunkSize(o.BlockstoreChunkSize.Value()))
+			}
+
 			var err error
 			host, err = sourceP2P.NewPeer(
 				ctx,
@@ -110,6 +114,7 @@ func New(ctx context.Context, opts ...Option) (*Node, error) {
 			o.PoolSize.Value(),
 			o.Runtime.Value(),
 			o.BlockstoreNamespace.Value(),
+			o.BlockstoreChunkSize,
 			o.IndexstoreNamespace.Value(),
 		),
 		P2P: p2pSys,

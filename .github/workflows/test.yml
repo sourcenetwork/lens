@@ -22,6 +22,7 @@ jobs:
     strategy:
         matrix:
           os: [ubuntu-latest, windows-latest, macos-latest]
+          store: [badger, badger-file]
 
     runs-on: ${{ matrix.os }}
 

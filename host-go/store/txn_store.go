@@ -8,7 +8,10 @@ import (
 	"context"
 
 	cid "github.com/ipfs/go-cid"
+	"github.com/sourcenetwork/corekv"
+	"github.com/sourcenetwork/corekv/chunk"
 	"github.com/sourcenetwork/corekv/namespace"
+	"github.com/sourcenetwork/immutable"
 	"github.com/sourcenetwork/immutable/enumerable"
 	"github.com/sourcenetwork/lens/host-go/config/model"
 	"github.com/sourcenetwork/lens/host-go/repository"
@@ -19,6 +22,7 @@ type implicitTxnStore struct {
 	repository repository.TxnRepository
 
 	blockstoreNamespace string
+	blockstoreChunksize immutable.Option[int]
 	indexstoreNamespace string
 }
 
@@ -48,10 +52,19 @@ func (s *implicitTxnStore) newTxn(readonly bool) (*txn, error) {
 	return s.wrapTxn(t), nil
 }
 
+// The key used to calculate keyLen is descriptive only, they are all the same length, and there
+// is nothing special about this one.
+var keyLen int = len([]byte("bafybeiet6foxcipesjurdqi4zpsgsiok5znqgw4oa5poef6qtiby5hlpzy"))
+
 func (s *implicitTxnStore) wrapTxn(t Txn) *txn {
+	var bStore corekv.ReaderWriter = namespace.Wrap(t, []byte(s.blockstoreNamespace))
+	if s.blockstoreChunksize.HasValue() {
+		bStore = chunk.NewSized(bStore, s.blockstoreChunksize.Value(), keyLen)
+	}
+
 	return &txn{
 		Txn:        t,
-		linkSystem: makeLinkSystem(namespace.Wrap(t, []byte(s.blockstoreNamespace))),
+		linkSystem: makeLinkSystem(bStore),
 		indexstore: namespace.Wrap(t, []byte(s.indexstoreNamespace)),
 		repository: s.repository.WithTxn(t),
 	}
