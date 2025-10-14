@@ -95,7 +95,7 @@ func WithTxnSource(txnSource store.TxnSource) Option {
 
 // WithBlockstoreChunksize will wrap the blockstore in a chunkstore with the given chunksize.
 //
-// This allows the store to hold values of indefinate size, even if the underlying
+// This allows the store to hold values of indefinite size, even if the underlying
 // corekv store does not support it (such as badger in-memory store).
 //
 // Setting this to true will reduce read-write speed, but will not affect the running
