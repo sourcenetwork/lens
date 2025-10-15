@@ -227,7 +227,7 @@ func writeConfigBlock(
 			return nil, err
 		}
 
-		orderedArgs := make([]KeyValue, len(module.Arguments))
+		orderedArgs := make([]KeyValue, 0, len(module.Arguments))
 		for argKey, value := range module.Arguments {
 			// The linking system does not tolerate the `any` type, so we store them as json.  The arguments
 			// are passed to the lenses as json anyway so we can be confident in the safety of this.
