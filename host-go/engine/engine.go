@@ -65,6 +65,13 @@ func NewModule(runtime module.Runtime, path string) (module.Module, error) {
 }
 
 func GetWasmBytes(path string) ([]byte, error) {
+	if strings.HasPrefix(path, "data:") {
+		// `url.Parse` doesn't handle data urls very well, so we do it ourselves.
+		// The data *must* immediately follow the first `,`, we assume it is unencoded.
+		dataStart := strings.Index(path, ",")
+		return []byte(path[dataStart+1:]), nil
+	}
+
 	parsed, err := url.Parse(path)
 	if err != nil {
 		return nil, err
@@ -90,9 +97,6 @@ func GetWasmBytes(path string) ([]byte, error) {
 			return nil, err
 		}
 		return content, nil
-
-	case "data":
-		return []byte(parsed.Host), nil
 
 	default:
 		return nil, fmt.Errorf("invalid module path: %s", path)

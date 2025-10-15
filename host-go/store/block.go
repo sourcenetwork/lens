@@ -193,7 +193,7 @@ func loadLensModel(ctx context.Context, linkSys *linking.LinkSystem, cid cid.Cid
 
 		var path string
 		if len(lensBlock.WasmBytes) != 0 {
-			path = "data://" + string(lensBlock.WasmBytes)
+			path = "data:application/octet-stream," + string(lensBlock.WasmBytes)
 		}
 
 		result.Lenses = append(result.Lenses, model.LensModule{

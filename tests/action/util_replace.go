@@ -32,7 +32,7 @@ var templateDataGenerators = map[string]func(*state.State) map[string]string{
 	"WasmBytes": func(s *state.State) map[string]string {
 		res := map[string]string{}
 		for i, bytes := range s.WasmBytes {
-			res["WasmBytes"+strconv.Itoa(i)] = "data://" + string(bytes)
+			res["WasmBytes"+strconv.Itoa(i)] = "data:application/octet-stream," + string(bytes)
 		}
 
 		return res
