@@ -21,6 +21,8 @@ test\:no-deps:
 	@$(MAKE) clean
 	go test ./...
 
+JS_TEST_FLAGS=-exec="$$(go env GOROOT)/lib/wasm/go_js_wasm_exec" -shuffle=on -timeout 10m
+
 .PHONY: test\:ci
 test\:ci:
 # We do not make the deps here, the ci does that seperately to avoid compiling stuff
@@ -29,4 +31,4 @@ test\:ci:
 
 .PHONY: test\:js
 test\:js:
-	GOOS=js GOARCH=wasm gotestsum --format testname -- -exec wasmbrowsertest ./...
+	GOOS=js GOARCH=wasm go test ./... $(JS_TEST_FLAGS)
