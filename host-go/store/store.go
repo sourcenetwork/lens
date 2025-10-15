@@ -144,7 +144,7 @@ func list(ctx context.Context, txn *txn) (map[cid.Cid]model.Lens, error) {
 
 		config, err := loadLensModel(ctx, txn.linkSystem, configCID)
 		if err != nil {
-			return nil, err
+			return nil, errors.Join(err, iter.Close())
 		}
 		results[configCID] = config
 	}
