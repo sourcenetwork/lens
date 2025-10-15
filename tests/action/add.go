@@ -30,8 +30,8 @@ func (a *Add) Execute() {
 		a.s.LensIDs = append(a.s.LensIDs, id)
 
 		for _, cfg := range a.Config.Lenses {
-			if strings.HasPrefix(cfg.Path, "data://") {
-				a.s.WasmBytes = append(a.s.WasmBytes, []byte(strings.TrimPrefix(cfg.Path, "data://")))
+			if strings.HasPrefix(cfg.Path, "data:") {
+				a.s.WasmBytes = append(a.s.WasmBytes, []byte(strings.TrimPrefix(cfg.Path, "data:application/octet-stream,")))
 			} else if strings.HasPrefix(cfg.Path, "file://") {
 				parsed, err := url.Parse(cfg.Path)
 				require.NoError(a.s.T, err)
