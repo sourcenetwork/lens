@@ -10,21 +10,28 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/ipld/go-ipld-prime/linking"
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
-	"github.com/ipld/go-ipld-prime/node/bindnode"
 	"github.com/sourcenetwork/corekv"
 	"github.com/sourcenetwork/corekv/blockstore"
 	"github.com/sourcenetwork/corekv/namespace"
+	"github.com/sourcenetwork/lens/host-go/repository"
 	"github.com/sourcenetwork/lens/host-go/store"
 )
 
 type P2P struct {
 	Host       Host
+	repository repository.Repository
 	indexstore corekv.ReaderWriter
 }
 
-func New(host Host, rootstore corekv.ReaderWriter, indexNamespace string) *P2P {
+func New(
+	host Host,
+	repository repository.Repository,
+	rootstore corekv.ReaderWriter,
+	indexNamespace string,
+) *P2P {
 	return &P2P{
 		Host:       host,
+		repository: repository,
 		indexstore: namespace.Wrap(rootstore, []byte(indexNamespace)),
 	}
 }
@@ -42,24 +49,14 @@ func (p *P2P) SyncLens(ctx context.Context, id string) error {
 
 	linkSys := makeLinkSystem(p.Host.IPLDStore())
 
-	configNode, err := linkSys.Load(linking.LinkContext{Ctx: ctx}, cidlink.Link{Cid: cid}, store.ConfigBlockSchemaPrototype)
+	model, err := store.LoadLensModel(ctx, &linkSys, cid)
 	if err != nil {
 		return err
 	}
 
-	configBlock := bindnode.Unwrap(configNode).(*store.ConfigBlock)
-
-	for _, moduleLink := range configBlock.Modules {
-		moduleNode, err := linkSys.Load(linking.LinkContext{Ctx: ctx}, moduleLink, store.ModuleBlockSchemaPrototype)
-		if err != nil {
-			return err
-		}
-		moduleBlock := bindnode.Unwrap(moduleNode).(*store.ModuleBlock)
-
-		_, err = linkSys.Load(linking.LinkContext{Ctx: ctx}, moduleBlock.Lens, store.LensBlockSchemaPrototype)
-		if err != nil {
-			return err
-		}
+	err = p.repository.Add(ctx, id, model)
+	if err != nil {
+		return err
 	}
 
 	// Store the top level index so that it may be fetched efficiently from the Store

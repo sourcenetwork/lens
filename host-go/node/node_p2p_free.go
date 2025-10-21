@@ -13,6 +13,7 @@ import (
 	"github.com/sourcenetwork/immutable"
 
 	"github.com/sourcenetwork/lens/host-go/engine/module"
+	"github.com/sourcenetwork/lens/host-go/repository"
 	"github.com/sourcenetwork/lens/host-go/store"
 )
 
@@ -46,7 +47,13 @@ func WithP2PDisabled(disableP2P bool) Option {
 	}
 }
 
-func createNode(ctx context.Context, store store.TxnStore, o Options, onClose []closer) (*Node, error) {
+func createNode(
+	ctx context.Context,
+	store store.TxnStore,
+	repository repository.Repository,
+	o Options,
+	onClose []closer,
+) (*Node, error) {
 	return &Node{
 		onClose: onClose,
 		Options: o,

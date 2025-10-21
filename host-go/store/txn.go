@@ -40,5 +40,5 @@ type repositoryTxnSource struct {
 var _ repository.TxnSource = (*repositoryTxnSource)(nil)
 
 func (s *repositoryTxnSource) NewTxn(readonly bool) (repository.Txn, error) {
-	return s.NewTxn(readonly)
+	return s.src.NewTxn(readonly)
 }

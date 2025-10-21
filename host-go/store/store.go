@@ -89,6 +89,25 @@ func New(
 	}
 }
 
+// NewR creates a new `TxnStore` using the given parameters.
+//
+// The blockstore namespace may safely be shared by other components if desired.
+func NewR(
+	txnSource TxnSource,
+	repository repository.TxnRepository,
+	blockstoreNamespace string,
+	blockstoreChunksize immutable.Option[int],
+	indexstoreNamespace string,
+) TxnStore {
+	return &implicitTxnStore{
+		txnSource:           txnSource,
+		repository:          repository,
+		blockstoreNamespace: blockstoreNamespace,
+		blockstoreChunksize: blockstoreChunksize,
+		indexstoreNamespace: indexstoreNamespace,
+	}
+}
+
 func add(ctx context.Context, cfg model.Lens, txn *txn) (cid.Cid, error) {
 	configLink, err := writeConfigBlock(ctx, txn.linkSystem, cfg)
 	if err != nil {
@@ -142,7 +161,7 @@ func list(ctx context.Context, txn *txn) (map[cid.Cid]model.Lens, error) {
 			return nil, errors.Join(err, iter.Close())
 		}
 
-		config, err := loadLensModel(ctx, txn.linkSystem, configCID)
+		config, err := LoadLensModel(ctx, txn.linkSystem, configCID)
 		if err != nil {
 			return nil, errors.Join(err, iter.Close())
 		}
