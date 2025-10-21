@@ -155,13 +155,18 @@ func (s *explicitTxnStore) Inverse(
 func (s *implicitTxnStore) Reload(
 	ctx context.Context,
 ) error {
-	txn, err := s.newTxn(true)
+	txn, err := s.newTxn(false)
 	if err != nil {
 		return err
 	}
 	defer txn.Discard()
 
-	return reload(ctx, txn)
+	err = reload(ctx, txn)
+	if err != nil {
+		return err
+	}
+
+	return txn.Commit()
 }
 
 func (s *explicitTxnStore) Reload(
