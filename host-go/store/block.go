@@ -155,7 +155,7 @@ func (b *ConfigBlock) generateNode() ipld.Node {
 	return bindnode.Wrap(b, ConfigBlockSchema).Representation()
 }
 
-func loadLensModel(ctx context.Context, linkSys *linking.LinkSystem, cid cid.Cid) (model.Lens, error) {
+func LoadLensModel(ctx context.Context, linkSys *linking.LinkSystem, cid cid.Cid) (model.Lens, error) {
 	configNode, err := linkSys.Load(linking.LinkContext{Ctx: ctx}, cidlink.Link{Cid: cid}, ConfigBlockSchemaPrototype)
 	if err != nil {
 		return model.Lens{}, err

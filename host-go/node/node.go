@@ -13,6 +13,7 @@ import (
 
 	"github.com/sourcenetwork/corekv/badger"
 	"github.com/sourcenetwork/immutable"
+	"github.com/sourcenetwork/lens/host-go/repository"
 	"github.com/sourcenetwork/lens/host-go/runtimes"
 	"github.com/sourcenetwork/lens/host-go/store"
 )
@@ -68,16 +69,18 @@ func New(ctx context.Context, opts ...Option) (*Node, error) {
 		o.IndexstoreNamespace = immutable.Some("i")
 	}
 
+	repo := repository.NewRepository(o.PoolSize.Value(), o.Runtime.Value(), &repositoryTxnSource{src: o.TxnSource.Value()})
+
 	node, err := createNode(
 		ctx,
-		store.New(
+		store.NewWithRepository(
 			o.TxnSource.Value(),
-			o.PoolSize.Value(),
-			o.Runtime.Value(),
+			repo,
 			o.BlockstoreNamespace.Value(),
 			o.BlockstoreChunkSize,
 			o.IndexstoreNamespace.Value(),
 		),
+		repo,
 		o,
 		onClose,
 	)
@@ -104,4 +107,19 @@ func (n *Node) Close() error {
 	}
 
 	return nil
+}
+
+// repositoryTxnSource wraps a `TxnSource` so that it satisfies the `repository.TxnSource`
+// interface and can be passed through.
+//
+// Without this, either the `store` package or the `repository` package would require an unnecessarily
+// enlarged Txn interface, hindering consumption.
+type repositoryTxnSource struct {
+	src store.TxnSource
+}
+
+var _ repository.TxnSource = (*repositoryTxnSource)(nil)
+
+func (s *repositoryTxnSource) NewTxn(readonly bool) (repository.Txn, error) {
+	return s.src.NewTxn(readonly)
 }
