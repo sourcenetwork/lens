@@ -73,7 +73,7 @@ func New(ctx context.Context, opts ...Option) (*Node, error) {
 
 	node, err := createNode(
 		ctx,
-		store.NewR(
+		store.NewWithRepository(
 			o.TxnSource.Value(),
 			repo,
 			o.BlockstoreNamespace.Value(),

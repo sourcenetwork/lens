@@ -89,10 +89,10 @@ func New(
 	}
 }
 
-// NewR creates a new `TxnStore` using the given parameters.
+// NewWithRepository creates a new `TxnStore` using the given parameters.
 //
 // The blockstore namespace may safely be shared by other components if desired.
-func NewR(
+func NewWithRepository(
 	txnSource TxnSource,
 	repository repository.TxnRepository,
 	blockstoreNamespace string,
