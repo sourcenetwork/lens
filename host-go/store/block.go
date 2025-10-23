@@ -18,6 +18,7 @@ import (
 	"github.com/ipld/go-ipld-prime/schema"
 	"github.com/sourcenetwork/lens/host-go/config/model"
 	"github.com/sourcenetwork/lens/host-go/engine"
+	l "github.com/sourcenetwork/lens/host-go/linking"
 )
 
 type schemaDefinition interface {
@@ -185,7 +186,9 @@ func LoadLensModel(ctx context.Context, linkSys *linking.LinkSystem, cid cid.Cid
 			}
 		}
 
-		lensNode, err := linkSys.Load(ipld.LinkContext{Ctx: ctx}, moduleBlock.Lens, LensBlockSchemaPrototype)
+		ls := l.New(*linkSys)
+		lensNode, err := ls.Load(ctx, moduleBlock.Lens, LensBlockSchemaPrototype)
+		//lensNode, err := linkSys.Load(ipld.LinkContext{Ctx: ctx}, moduleBlock.Lens, LensBlockSchemaPrototype)
 		if err != nil {
 			return model.Lens{}, err
 		}
@@ -222,7 +225,9 @@ func writeConfigBlock(
 			WasmBytes: wasmBytes,
 		}
 
-		lensLink, err := linkSys.Store(linking.LinkContext{Ctx: ctx}, getLinkPrototype(), lensBlock.generateNode())
+		ls := l.New(*linkSys)
+		lensLink, err := ls.Store(ctx, lensBlock.generateNode())
+		//lensLink, err := linkSys.Store(linking.LinkContext{Ctx: ctx}, getLinkPrototype(), lensBlock.generateNode())
 		if err != nil {
 			return nil, err
 		}
