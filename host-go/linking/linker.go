@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"context"
 	"slices"
-	"strings"
 
 	"github.com/ipfs/go-cid"
 	"github.com/ipld/go-ipld-prime"
@@ -27,23 +26,24 @@ type LinkSystem struct {
 func New(linking linking.LinkSystem) *LinkSystem { //todo - might as well just take a blck store
 	return &LinkSystem{
 		linking: linking,
-		maxSize: 100000, //todo :)
+		maxSize: 3000000, //todo :)
 	}
 }
 
 func (l *LinkSystem) Store(ctx context.Context, node ipld.Node) (datamodel.Link, error) {
-	enc, err := l.linking.EncoderChooser(getLinkPrototype())
+	encoder, err := l.linking.EncoderChooser(getLinkPrototype())
 	if err != nil {
 		return nil, err
 	}
-	var b bytes.Buffer
-	enc(node, &b)
-	bts := b.Bytes()
+	var buf bytes.Buffer
+	encoder(node, &buf)
+	nodeBytes := buf.Bytes()
 
-	chunkLinks := []datamodel.Link{}
-	if len(bts) > l.maxSize {
-		for byteChunk := range slices.Chunk(bts, l.maxSize) { // todo - needs to be smaller as the block has overhead
-			chunkBlock := ChunkBlock{
+	var multiBlock Multi
+	if len(nodeBytes) > l.maxSize {
+		chunkLinks := []datamodel.Link{}
+		for byteChunk := range slices.Chunk(nodeBytes, l.maxSize) {
+			chunkBlock := Chunk{
 				Chunk: byteChunk,
 			}
 
@@ -53,14 +53,17 @@ func (l *LinkSystem) Store(ctx context.Context, node ipld.Node) (datamodel.Link,
 			}
 			chunkLinks = append(chunkLinks, chunkLink)
 		}
-	}
-
-	if len(chunkLinks) == 1 {
-		return chunkLinks[0], nil
-	}
-
-	multiBlock := MultiBlock{
-		Children: chunkLinks,
+		multiBlock = Multi{
+			Chunks: &Chunks{
+				Chunks: chunkLinks,
+			},
+		}
+	} else {
+		multiBlock = Multi{
+			Chunk: &Chunk{
+				Chunk: nodeBytes,
+			},
+		}
 	}
 
 	return l.linking.Store(linking.LinkContext{Ctx: ctx}, getLinkPrototype(), multiBlock.generateNode())
@@ -71,50 +74,49 @@ func (l *LinkSystem) Load(
 	link datamodel.Link,
 	prototype datamodel.NodePrototype,
 ) (datamodel.Node, error) {
-	node, err := l.linking.Load(linking.LinkContext{Ctx: ctx}, link, prototype)
+	node, err := l.linking.Load(linking.LinkContext{Ctx: ctx}, link, MultiBlockSchemaPrototype)
 	if err != nil {
-		if strings.Contains(err.Error(), "invalid key: \"children\" is not a field in type") {
-			multiNode, err := l.linking.Load(linking.LinkContext{Ctx: ctx}, link, MultiBlockSchemaPrototype)
-			if err != nil {
-				return nil, err
-			}
-			multiBlock := bindnode.Unwrap(multiNode).(*MultiBlock)
-
-			childBytes := [][]byte{}
-			for _, child := range multiBlock.Children {
-				childNode, err := l.linking.Load(linking.LinkContext{Ctx: ctx}, child, ChunkBlockSchemaPrototype)
-				if err != nil {
-					return nil, err
-				}
-
-				childBlock := bindnode.Unwrap(childNode).(*ChunkBlock)
-
-				childBytes = append(childBytes, childBlock.Chunk)
-			}
-
-			b := bytes.Join(childBytes, []byte{})
-			var buf bytes.Buffer
-			_, err = buf.Write(b)
-			if err != nil {
-				return nil, err
-			}
-
-			decoder, err := l.linking.DecoderChooser(link)
-			if err != nil {
-				return nil, err
-			}
-
-			builder := prototype.NewBuilder()
-			err = decoder(builder, &buf)
-			if err != nil {
-				return nil, err
-			}
-
-			return builder.Build(), nil
-		}
 		return nil, err
 	}
-	return node, err
+	multiBlock := bindnode.Unwrap(node).(*Multi)
+
+	var blockBytes []byte
+	if multiBlock.Chunks != nil {
+		chunkBytes := [][]byte{}
+		for _, chunk := range multiBlock.Chunks.Chunks {
+			chunkNode, err := l.linking.Load(linking.LinkContext{Ctx: ctx}, chunk, ChunkBlockSchemaPrototype)
+			if err != nil {
+				return nil, err
+			}
+
+			chunkBlock := bindnode.Unwrap(chunkNode).(*Chunk)
+
+			chunkBytes = append(chunkBytes, chunkBlock.Chunk)
+		}
+
+		blockBytes = bytes.Join(chunkBytes, []byte{})
+	} else {
+		blockBytes = multiBlock.Chunk.Chunk
+	}
+
+	var buf bytes.Buffer
+	_, err = buf.Write(blockBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	decoder, err := l.linking.DecoderChooser(link)
+	if err != nil {
+		return nil, err
+	}
+
+	builder := prototype.NewBuilder()
+	err = decoder(builder, &buf)
+	if err != nil {
+		return nil, err
+	}
+
+	return builder.Build(), nil
 }
 
 func getLinkPrototype() cidlink.LinkPrototype {

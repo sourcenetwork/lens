@@ -30,7 +30,7 @@ func TestAddSyncList(t *testing.T) {
 				Config: model.Lens{
 					Lenses: []model.LensModule{
 						{
-							Path: modules.WasmPath1,
+							Path: modules.WasmPath4,
 						},
 					},
 				},

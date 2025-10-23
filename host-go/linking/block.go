@@ -16,57 +16,91 @@ type schemaDefinition interface {
 	IPLDSchemaBytes() []byte
 }
 
-type MultiBlock struct {
-	Children []datamodel.Link
+type Multi struct {
+	Chunks *Chunks
+	Chunk  *Chunk
 }
 
-var _ schemaDefinition = (*MultiBlock)(nil)
+var _ schemaDefinition = (*Multi)(nil)
 
-func (b *MultiBlock) IPLDSchemaBytes() []byte {
+func (b *Multi) IPLDSchemaBytes() []byte {
 	return []byte(`
-		type multiBlock struct {
-			children [Link]
+		type multi union {
+			| chunks "chunks"
+			| chunk "chunk"
+		} representation keyed
+
+		type chunks struct {
+			chunks [Link]
 		}
-	`)
-}
 
-func (b *MultiBlock) generateNode() ipld.Node {
-	return bindnode.Wrap(b, MultiBlockSchema).Representation()
-}
-
-type ChunkBlock struct {
-	Chunk []byte
-}
-
-var _ schemaDefinition = (*MultiBlock)(nil)
-
-func (b *ChunkBlock) IPLDSchemaBytes() []byte {
-	return []byte(`
-		type chunkBlock struct {
+		type chunk struct {
 			chunk Bytes
 		}
 	`)
 }
 
-func (b *ChunkBlock) generateNode() ipld.Node {
+func (b *Multi) generateNode() ipld.Node {
+	return bindnode.Wrap(b, MultiBlockSchema).Representation()
+}
+
+type Chunk struct {
+	Chunk []byte
+}
+
+var _ schemaDefinition = (*Multi)(nil)
+
+func (b *Chunk) IPLDSchemaBytes() []byte {
+	return []byte(`
+		type chunk struct {
+			chunk Bytes
+		}
+	`)
+}
+
+func (b *Chunk) generateNode() ipld.Node {
 	return bindnode.Wrap(b, ChunkBlockSchema).Representation()
 }
 
+type Chunks struct {
+	Chunks []datamodel.Link
+}
+
+var _ schemaDefinition = (*Multi)(nil)
+
+func (b *Chunks) IPLDSchemaBytes() []byte {
+	return []byte(`
+		type chunks struct {
+			chunks [Link]
+		}
+	`)
+}
+
+func (b *Chunks) generateNode() ipld.Node {
+	return bindnode.Wrap(b, ChunksBlockSchema).Representation()
+}
+
 var (
-	MultiBlockSchema          schema.Type
-	MultiBlockSchemaPrototype ipld.NodePrototype
-	ChunkBlockSchema          schema.Type
-	ChunkBlockSchemaPrototype ipld.NodePrototype
+	MultiBlockSchema           schema.Type
+	MultiBlockSchemaPrototype  ipld.NodePrototype
+	ChunkBlockSchema           schema.Type
+	ChunkBlockSchemaPrototype  ipld.NodePrototype
+	ChunksBlockSchema          schema.Type
+	ChunksBlockSchemaPrototype ipld.NodePrototype
 )
 
 func init() {
 	MultiBlockSchema, MultiBlockSchemaPrototype = mustSetSchema(
-		"multiBlock",
-		&MultiBlock{},
+		"multi",
+		&Multi{},
 	)
 	ChunkBlockSchema, ChunkBlockSchemaPrototype = mustSetSchema(
-		"chunkBlock",
-		&ChunkBlock{},
+		"chunk",
+		&Chunk{},
+	)
+	ChunksBlockSchema, ChunksBlockSchemaPrototype = mustSetSchema(
+		"chunks",
+		&Chunks{},
 	)
 }
 
