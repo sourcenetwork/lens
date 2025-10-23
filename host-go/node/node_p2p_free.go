@@ -25,6 +25,7 @@ type Options struct {
 	Runtime             immutable.Option[module.Runtime]
 	BlockstoreNamespace immutable.Option[string]
 	BlockstoreChunkSize immutable.Option[int]
+	MaxBlockSize        immutable.Option[int]
 	IndexstoreNamespace immutable.Option[string]
 	DisableP2P          bool
 }
