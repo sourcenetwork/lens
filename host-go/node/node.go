@@ -78,6 +78,7 @@ func New(ctx context.Context, opts ...Option) (*Node, error) {
 			repo,
 			o.BlockstoreNamespace.Value(),
 			o.BlockstoreChunkSize,
+			immutable.Some(3000000), // todo!
 			o.IndexstoreNamespace.Value(),
 		),
 		repo,

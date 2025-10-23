@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package linking
+package multi
 
 import (
 	"bytes"
@@ -20,13 +20,13 @@ import (
 
 type LinkSystem struct {
 	maxSize int
-	linking linking.LinkSystem
+	linking *linking.LinkSystem
 }
 
-func New(linking linking.LinkSystem) *LinkSystem { //todo - might as well just take a blck store
+func New(linking *linking.LinkSystem, maxBlockSize int) *LinkSystem { //todo - might as well just take a blck store
 	return &LinkSystem{
 		linking: linking,
-		maxSize: 3000000, //todo :)
+		maxSize: maxBlockSize,
 	}
 }
 
