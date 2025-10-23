@@ -70,3 +70,15 @@ func WithBlockstoreChunkSize(blockstoreChunkSize int) Option {
 		opts.BlockstoreChunkSize = immutable.Some(blockstoreChunkSize)
 	}
 }
+
+// WithMaxBlockSize will limit the size of lens blocks to the given length if provided.
+//
+// IPFS implmentations limit the size of the blocks that they are willing to transport
+// and can silently fail if they come across a block that is too large (~4MB).
+//
+// This option defaults to 3MB.
+func WithMaxBlockSize(maxBlockSize int) Option {
+	return func(opts *Options) {
+		opts.MaxBlockSize = immutable.Some(maxBlockSize)
+	}
+}

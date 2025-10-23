@@ -24,6 +24,8 @@ import (
 	"github.com/sourcenetwork/lens/host-go/repository"
 )
 
+const defaultBlockMaxSize int = 1024 * 1024 * 3
+
 type Store interface {
 	// Add stores the given Lens and returns its content ID.
 	//
@@ -78,13 +80,22 @@ func New(
 	runtime module.Runtime,
 	blockstoreNamespace string,
 	blockstoreChunksize immutable.Option[int],
+	maxBlockSize immutable.Option[int],
 	indexstoreNamespace string,
 ) TxnStore {
+	var maxSize int
+	if maxBlockSize.HasValue() {
+		maxSize = maxBlockSize.Value()
+	} else {
+		maxSize = defaultBlockMaxSize
+	}
+
 	return &implicitTxnStore{
 		txnSource:           txnSource,
 		repository:          repository.NewRepository(poolSize, runtime, &repositoryTxnSource{src: txnSource}),
 		blockstoreNamespace: blockstoreNamespace,
 		blockstoreChunksize: blockstoreChunksize,
+		maxBlockSize:        maxSize,
 		indexstoreNamespace: indexstoreNamespace,
 	}
 }
@@ -97,19 +108,28 @@ func NewWithRepository(
 	repository repository.TxnRepository,
 	blockstoreNamespace string,
 	blockstoreChunksize immutable.Option[int],
+	maxBlockSize immutable.Option[int],
 	indexstoreNamespace string,
 ) TxnStore {
+	var maxSize int
+	if maxBlockSize.HasValue() {
+		maxSize = maxBlockSize.Value()
+	} else {
+		maxSize = defaultBlockMaxSize
+	}
+
 	return &implicitTxnStore{
 		txnSource:           txnSource,
 		repository:          repository,
 		blockstoreNamespace: blockstoreNamespace,
 		blockstoreChunksize: blockstoreChunksize,
+		maxBlockSize:        maxSize,
 		indexstoreNamespace: indexstoreNamespace,
 	}
 }
 
 func add(ctx context.Context, cfg model.Lens, txn *txn) (cid.Cid, error) {
-	configLink, err := writeConfigBlock(ctx, txn.linkSystem, cfg)
+	configLink, err := writeConfigBlock(ctx, txn.linkSystem, txn.maxBlockSize, cfg)
 	if err != nil {
 		return cid.Undef, err
 	}

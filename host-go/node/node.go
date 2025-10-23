@@ -69,6 +69,10 @@ func New(ctx context.Context, opts ...Option) (*Node, error) {
 		o.IndexstoreNamespace = immutable.Some("i")
 	}
 
+	if !o.MaxBlockSize.HasValue() {
+		o.MaxBlockSize = immutable.Some(1024 * 1024 * 3)
+	}
+
 	repo := repository.NewRepository(o.PoolSize.Value(), o.Runtime.Value(), &repositoryTxnSource{src: o.TxnSource.Value()})
 
 	node, err := createNode(
@@ -78,6 +82,7 @@ func New(ctx context.Context, opts ...Option) (*Node, error) {
 			repo,
 			o.BlockstoreNamespace.Value(),
 			o.BlockstoreChunkSize,
+			o.MaxBlockSize,
 			o.IndexstoreNamespace.Value(),
 		),
 		repo,
