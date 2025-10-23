@@ -35,7 +35,7 @@ type Test struct {
 func (test *Test) Execute(t testing.TB) {
 	ctx := context.Background()
 	// Set the timeout for the tests in order to limit the time spent waiting infinite loops
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 
 	multiplier.Skip(t, test.Includes, test.Excludes)
