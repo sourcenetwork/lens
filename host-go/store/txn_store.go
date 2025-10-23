@@ -24,6 +24,7 @@ type implicitTxnStore struct {
 	blockstoreNamespace string
 	blockstoreChunksize immutable.Option[int]
 	indexstoreNamespace string
+	maxBlockSize        int
 }
 
 type explicitTxnStore struct {
@@ -63,10 +64,11 @@ func (s *implicitTxnStore) wrapTxn(t Txn) *txn {
 	}
 
 	return &txn{
-		Txn:        t,
-		linkSystem: makeLinkSystem(bStore),
-		indexstore: namespace.Wrap(t, []byte(s.indexstoreNamespace)),
-		repository: s.repository.WithTxn(t),
+		Txn:          t,
+		maxBlockSize: s.maxBlockSize,
+		linkSystem:   makeLinkSystem(bStore),
+		indexstore:   namespace.Wrap(t, []byte(s.indexstoreNamespace)),
+		repository:   s.repository.WithTxn(t),
 	}
 }
 

@@ -9,12 +9,13 @@ import (
 
 	"github.com/sourcenetwork/immutable"
 	"github.com/sourcenetwork/lens/host-go/config/model"
+	"github.com/sourcenetwork/lens/host-go/node"
 	"github.com/sourcenetwork/lens/tests/action"
 	"github.com/sourcenetwork/lens/tests/integration"
 	"github.com/sourcenetwork/lens/tests/modules"
 )
 
-func TestAddSyncList(t *testing.T) {
+func TestAddSyncList_SmallLens(t *testing.T) {
 	test := &integration.Test{
 		Actions: []action.Action{
 			&action.NewNode{},
@@ -30,7 +31,61 @@ func TestAddSyncList(t *testing.T) {
 				Config: model.Lens{
 					Lenses: []model.LensModule{
 						{
-							Path: modules.WasmPath1,
+							// Use a release build, they are smaller, this one is about 180KB,
+							// much smaller than the default 3MB limit.
+							Path: modules.WasmPath1_Release,
+						},
+					},
+				},
+			},
+			&action.Sync{
+				Nodeful: action.Nodeful{
+					NodeIndex: immutable.Some(1),
+				},
+				LensID: "{{.LensIDs0}}",
+			},
+			&action.List{
+				Nodeful: action.Nodeful{
+					NodeIndex: immutable.Some(1),
+				},
+				Expected: map[string]model.Lens{
+					"{{.LensIDs0}}": {
+						Lenses: []model.LensModule{
+							{
+								Path: "{{.WasmBytes0}}",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	test.Execute(t)
+}
+
+func TestAddSyncList_LargeLens(t *testing.T) {
+	test := &integration.Test{
+		Actions: []action.Action{
+			&action.NewNode{
+				Options: []node.Option{
+					// Set a low max block size to ensure chunking takes place
+					node.WithMaxBlockSize(100000),
+				},
+			},
+			&action.NewNode{},
+			&action.Connect{
+				FromNodeIndex: 1,
+				ToNodeIndex:   0,
+			},
+			&action.Add{
+				Nodeful: action.Nodeful{
+					NodeIndex: immutable.Some(0),
+				},
+				Config: model.Lens{
+					Lenses: []model.LensModule{
+						{
+							Path: modules.WasmPath4,
 						},
 					},
 				},

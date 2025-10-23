@@ -23,9 +23,10 @@ type Txn interface {
 
 type txn struct {
 	repository.Txn
-	linkSystem *linking.LinkSystem
-	indexstore corekv.ReaderWriter
-	repository repository.Repository
+	linkSystem   *linking.LinkSystem
+	maxBlockSize int
+	indexstore   corekv.ReaderWriter
+	repository   repository.Repository
 }
 
 // repositoryTxnSource wraps a `TxnSource` so that it satisfies the `repository.TxnSource`

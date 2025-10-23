@@ -14,6 +14,11 @@ var WasmPath1 string = getPathRelativeToProjectRoot(
 	"/tests/modules/rust_wasm32_simple/target/wasm32-unknown-unknown/debug/rust_wasm32_simple.wasm",
 )
 
+// WasmPath1_Release contains a release build of `WasmPath1`, the binary size is considerably smaller (~180KB).
+var WasmPath1_Release string = getPathRelativeToProjectRoot(
+	"/tests/modules/rust_wasm32_simple/target/wasm32-unknown-unknown/release/rust_wasm32_simple.wasm",
+)
+
 // WasmPath2 contains a simple wasm32 rust lens that takes an item of `type2` and adds 1 to its age.
 //
 // Module also supplies an inverse function.
