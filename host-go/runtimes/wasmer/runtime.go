@@ -151,6 +151,10 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 		}
 	}
 
+	memSlice := memory.Data()
+	initialState := make([]byte, len(memSlice))
+	copy(initialState, memSlice)
+
 	return module.Instance{
 		Alloc: func(u module.MemSize) (module.MemSize, error) {
 			r, err := alloc.Call(u)
@@ -172,6 +176,16 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 		},
 		Memory: func() module.Memory {
 			return module.NewBytesMemory(memory.Data())
+		},
+		Reset: func() {
+			initialLen := len(initialState)
+			currentMemory := memory.Data()
+
+			copy(currentMemory, initialState)
+
+			for i := initialLen; i < len(currentMemory); i++ {
+				currentMemory[i] = 0
+			}
 		},
 		OwnedBy: instance,
 	}, nil

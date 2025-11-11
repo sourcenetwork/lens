@@ -22,6 +22,10 @@ type Instance struct {
 	// module after this function has been called are not guaranteed to be visible to the returned io.Reader.
 	Memory func() Memory
 
+	// Reset resets the wasm memory to the state it was in immediately after configuration, before any items were
+	// pulled through it.
+	Reset func()
+
 	// OwnedBy hosts a reference to any object(s) that may be required to live in memory for the lifetime of this Module.
 	//
 	// This is very important when working with some libraries (such as wasmer-go), as without this, dependencies of other members

@@ -143,6 +143,8 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 		}
 	}
 
+	initialState, _ := memory.Read(0, memory.Size())
+
 	return module.Instance{
 		Alloc: func(u module.MemSize) (module.MemSize, error) {
 			r, err := alloc.Call(ctx, uint64(u))
@@ -164,6 +166,15 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 		},
 		Memory: func() module.Memory {
 			return newMemory(memory)
+		},
+		Reset: func() {
+			initialLen := uint32(len(initialState))
+			currentLen := memory.Size()
+			memory.Write(0, initialState)
+
+			for i := initialLen; i < currentLen; i++ {
+				memory.WriteByte(i, 0)
+			}
 		},
 		OwnedBy: instance,
 	}, nil

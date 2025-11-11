@@ -156,6 +156,11 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 		}
 	}
 
+	jsMemory := js.Global().Get("Uint8Array").New(memory.Get("buffer"))
+	initialLen := jsMemory.Get("length").Int()
+	initialState := make([]byte, initialLen)
+	js.CopyBytesToGo(initialState, jsMemory)
+
 	return module.Instance{
 		Alloc: func(u module.MemSize) (module.MemSize, error) {
 			result := alloc.Invoke(int32(u))
@@ -172,6 +177,16 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 		Memory: func() module.Memory {
 			buffer := memory.Get("buffer")
 			return newMemory(buffer)
+		},
+		Reset: func() {
+			initialLen := len(initialState)
+			currentLen := jsMemory.Get("length").Int()
+
+			js.CopyBytesToJS(jsMemory, initialState)
+
+			for i := initialLen; i < currentLen; i++ {
+				jsMemory.SetIndex(i, js.ValueOf(0))
+			}
 		},
 		OwnedBy: instance,
 	}, nil

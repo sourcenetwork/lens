@@ -79,16 +79,105 @@ func TestAddTransformReset_ClearsLensState(t *testing.T) {
 					},
 				),
 				Expected: enumerable.New(
-					// This is undesirable, the ids should start from `1`, but instead Lens has preserved
-					// state despite the `Reset` call.
 					[]store.Document{
 						{
 							"Name": "John",
-							"Id":   float64(3),
+							"Id":   float64(1),
 						},
 						{
 							"Name": "Addo",
-							"Id":   float64(4),
+							"Id":   float64(2),
+						},
+					},
+				),
+			},
+		},
+	}
+
+	test.Execute(t)
+}
+
+func TestAddTransformResetWithMultipleTransforms_ClearsLensState(t *testing.T) {
+	test := &integration.Test{
+		Actions: []action.Action{
+			&action.NewNode{
+				Options: []node.Option{
+					// Create the node with pool size 1, to guarantee instance re-use
+					node.WithPoolSize(1),
+				},
+			},
+			&action.Add{
+				Config: model.Lens{
+					Lenses: []model.LensModule{
+						{
+							Path: modules.WasmPath4,
+							Arguments: map[string]any{
+								"src": "name",
+								"dst": "Name",
+							},
+						},
+						{
+							// It is important that this state-based lens, the focus of the test, executes after
+							// another (any) lens within the same config.  Lens does some optimization when lenses
+							// are chained, and it is important that reset still works in such cases.
+							Path: modules.WasmPath5,
+						},
+					},
+				},
+			},
+			&action.Transform{
+				LensID: "{{.LensIDs0}}",
+				Input: enumerable.New(
+					[]store.Document{
+						{
+							"name": "John",
+							"Id":   0,
+						},
+						{
+							"name": "Addo",
+							"Id":   0,
+						},
+					},
+				),
+				Expected: enumerable.New(
+					[]store.Document{
+						{
+							"Name": "John",
+							"Id":   float64(1),
+						},
+						{
+							"Name": "Addo",
+							"Id":   float64(2),
+						},
+					},
+				),
+			},
+			&action.TransformReset{
+				TransformIndex: 0,
+			},
+			&action.Transform{
+				LensID: "{{.LensIDs0}}",
+				Input: enumerable.New(
+					[]store.Document{
+						{
+							"name": "John",
+							"Id":   0,
+						},
+						{
+							"name": "Addo",
+							"Id":   0,
+						},
+					},
+				),
+				Expected: enumerable.New(
+					[]store.Document{
+						{
+							"Name": "John",
+							"Id":   float64(1),
+						},
+						{
+							"Name": "Addo",
+							"Id":   float64(2),
 						},
 					},
 				),
