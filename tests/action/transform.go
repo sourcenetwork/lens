@@ -1,0 +1,64 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+package action
+
+import (
+	"fmt"
+
+	"github.com/sourcenetwork/immutable/enumerable"
+	"github.com/sourcenetwork/lens/host-go/store"
+	"github.com/stretchr/testify/require"
+)
+
+type Transform struct {
+	Nodeful
+
+	LensID   string
+	Input    enumerable.Enumerable[store.Document]
+	Expected enumerable.Enumerable[store.Document]
+}
+
+var _ Action = (*Add)(nil)
+var _ Stateful = (*Add)(nil)
+
+func (a *Transform) Execute() {
+	lensID := replace(a.s, a.LensID)
+	for nodeIndex, n := range a.Nodes() {
+		output, err := n.Store.Transform(a.s.Ctx, a.Input, lensID)
+		require.NoError(a.s.T, err)
+
+		n.Transforms = append(n.Transforms, output)
+
+		for i := 0; true; i++ {
+			println(fmt.Sprintf("TransformEval: Node: {%v} item: {%v}", nodeIndex, i))
+
+			hasNext, err := output.Next()
+			require.NoError(a.s.T, err)
+
+			expectedHasNext, err := a.Expected.Next()
+			require.NoError(a.s.T, err)
+
+			require.Equal(a.s.T, expectedHasNext, hasNext)
+
+			if !hasNext {
+				break
+			}
+
+			value, err := output.Value()
+			require.NoError(a.s.T, err)
+
+			expectedValue, err := a.Expected.Value()
+			require.NoError(a.s.T, err)
+
+			require.Equal(a.s.T, expectedValue, value)
+		}
+
+		expectedHasNext, err := a.Expected.Next()
+		require.NoError(a.s.T, err)
+		require.False(a.s.T, expectedHasNext)
+
+		a.Expected.Reset()
+	}
+}
