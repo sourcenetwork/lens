@@ -197,6 +197,10 @@ func transform(
 	id string,
 	txn *txn,
 ) (enumerable.Enumerable[Document], error) {
+	if err := assertIsCid(id); err != nil {
+		return nil, err
+	}
+
 	return txn.repository.Transform(ctx, source, id)
 }
 
@@ -206,6 +210,10 @@ func inverse(
 	id string,
 	txn *txn,
 ) (enumerable.Enumerable[Document], error) {
+	if err := assertIsCid(id); err != nil {
+		return nil, err
+	}
+
 	return txn.repository.Inverse(ctx, source, id)
 }
 
@@ -271,4 +279,9 @@ func getLinkPrototype() cidlink.LinkPrototype {
 		MhType:   uint64(multicodec.Sha2_256),
 		MhLength: 32,
 	}}
+}
+
+func assertIsCid(input string) error {
+	_, err := cid.Parse(input)
+	return err
 }
