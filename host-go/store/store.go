@@ -33,7 +33,7 @@ type Store interface {
 	Add(ctx context.Context, cfg model.Lens) (string, error)
 
 	// List fetches all the stored Lenses from the store and returns them mapped by their content ID.
-	List(ctx context.Context) (map[cid.Cid]model.Lens, error)
+	List(ctx context.Context) (map[string]model.Lens, error)
 
 	// Reload fetches all stored Lenses and uses them to overwrite any cached instances held by the in
 	// memory wasm instance repository.
@@ -154,7 +154,7 @@ func add(ctx context.Context, cfg model.Lens, txn *txn) (string, error) {
 	return configCID.String(), nil
 }
 
-func list(ctx context.Context, txn *txn) (map[cid.Cid]model.Lens, error) {
+func list(ctx context.Context, txn *txn) (map[string]model.Lens, error) {
 	iter, err := txn.indexstore.Iterator(
 		ctx,
 		corekv.IterOptions{
@@ -165,7 +165,7 @@ func list(ctx context.Context, txn *txn) (map[cid.Cid]model.Lens, error) {
 		return nil, err
 	}
 
-	results := map[cid.Cid]model.Lens{}
+	results := map[string]model.Lens{}
 	for {
 		hasValue, err := iter.Next()
 		if err != nil {
@@ -185,7 +185,7 @@ func list(ctx context.Context, txn *txn) (map[cid.Cid]model.Lens, error) {
 		if err != nil {
 			return nil, errors.Join(err, iter.Close())
 		}
-		results[configCID] = config
+		results[configCID.String()] = config
 	}
 
 	return results, iter.Close()
@@ -224,7 +224,7 @@ func reload(ctx context.Context, txn *txn) error {
 	}
 
 	for cid, lens := range lenses {
-		err = txn.repository.Add(ctx, cid.String(), lens)
+		err = txn.repository.Add(ctx, cid, lens)
 		if err != nil {
 			return err
 		}

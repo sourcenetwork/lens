@@ -7,7 +7,6 @@ package store
 import (
 	"context"
 
-	cid "github.com/ipfs/go-cid"
 	"github.com/sourcenetwork/corekv"
 	"github.com/sourcenetwork/corekv/chunk"
 	"github.com/sourcenetwork/corekv/namespace"
@@ -96,7 +95,7 @@ func (s *explicitTxnStore) Add(ctx context.Context, cfg model.Lens) (string, err
 	return add(ctx, cfg, s.txn)
 }
 
-func (s *implicitTxnStore) List(ctx context.Context) (map[cid.Cid]model.Lens, error) {
+func (s *implicitTxnStore) List(ctx context.Context) (map[string]model.Lens, error) {
 	txn, err := s.newTxn(true)
 	if err != nil {
 		return nil, err
@@ -106,7 +105,7 @@ func (s *implicitTxnStore) List(ctx context.Context) (map[cid.Cid]model.Lens, er
 	return list(ctx, txn)
 }
 
-func (s *explicitTxnStore) List(ctx context.Context) (map[cid.Cid]model.Lens, error) {
+func (s *explicitTxnStore) List(ctx context.Context) (map[string]model.Lens, error) {
 	return list(ctx, s.txn)
 }
 
