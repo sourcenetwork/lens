@@ -90,6 +90,7 @@ func (p *fromPipe[TSource, TResult]) Bytes() ([]byte, error) {
 }
 
 func (p *fromPipe[TSource, TResult]) Reset() {
+	p.instance.Reset()
 	p.source.Reset()
 }
 

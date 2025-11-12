@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ipfs/go-cid"
+	"github.com/sourcenetwork/immutable/enumerable"
 	"github.com/sourcenetwork/lens/host-go/node"
 	"github.com/sourcenetwork/lens/host-go/store"
 )
@@ -27,6 +28,7 @@ type NodeInfo struct {
 	Node *node.Node
 	Path string
 
-	Store store.Store
-	Txns  []store.Txn
+	Store      store.Store
+	Txns       []store.Txn
+	Transforms []enumerable.Enumerable[store.Document]
 }

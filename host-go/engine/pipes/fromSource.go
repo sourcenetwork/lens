@@ -91,6 +91,7 @@ func (s *fromSource[TSource, TResult]) Bytes() ([]byte, error) {
 }
 
 func (s *fromSource[TSource, TResult]) Reset() {
+	s.instance.Reset()
 	s.source.Reset()
 }
 
