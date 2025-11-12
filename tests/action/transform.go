@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Transform action executes the transform of the given ID with the given input
+// and asserts that the output matches the given expected output.
 type Transform struct {
 	Nodeful
 

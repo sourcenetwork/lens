@@ -4,6 +4,7 @@
 
 package action
 
+// TransformReset resets the given transform.
 type TransformReset struct {
 	Nodeful
 
