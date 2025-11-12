@@ -42,7 +42,7 @@ func (a *List) Execute() {
 		// with `cid.Cid`s is cumbersome, and the error on failure is not as nice.
 		resultStringified := make(map[string]model.Lens, len(result))
 		for cid, lens := range result {
-			resultStringified[cid.String()] = lens
+			resultStringified[cid] = lens
 		}
 
 		require.Equal(a.s.T, expected, resultStringified)

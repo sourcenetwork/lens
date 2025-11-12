@@ -17,9 +17,11 @@ import (
 type Transform struct {
 	Nodeful
 
-	LensID   string
-	Input    enumerable.Enumerable[store.Document]
-	Expected enumerable.Enumerable[store.Document]
+	LensID        string
+	Input         enumerable.Enumerable[store.Document]
+	Expected      enumerable.Enumerable[store.Document]
+	Inverse       bool
+	ExpectedError string
 }
 
 var _ Action = (*Add)(nil)
@@ -28,8 +30,16 @@ var _ Stateful = (*Add)(nil)
 func (a *Transform) Execute() {
 	lensID := replace(a.s, a.LensID)
 	for nodeIndex, n := range a.Nodes() {
-		output, err := n.Store.Transform(a.s.Ctx, a.Input, lensID)
-		require.NoError(a.s.T, err)
+		var output enumerable.Enumerable[store.Document]
+		var err error
+		if a.Inverse {
+			output, err = n.Store.Inverse(a.s.Ctx, a.Input, lensID)
+		} else {
+			output, err = n.Store.Transform(a.s.Ctx, a.Input, lensID)
+		}
+		if requireErr(a.s.T, a.ExpectedError, err) {
+			continue
+		}
 
 		n.Transforms = append(n.Transforms, output)
 

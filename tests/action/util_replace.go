@@ -24,7 +24,7 @@ var templateDataGenerators = map[string]func(*state.State) map[string]string{
 	"LensIDs": func(s *state.State) map[string]string {
 		res := map[string]string{}
 		for i, ID := range s.LensIDs {
-			res["LensIDs"+strconv.Itoa(i)] = ID.String()
+			res["LensIDs"+strconv.Itoa(i)] = ID
 		}
 
 		return res
