@@ -72,27 +72,27 @@ func (s *implicitTxnStore) wrapTxn(t Txn) *txn {
 	}
 }
 
-func (s *implicitTxnStore) Add(ctx context.Context, cfg model.Lens) (cid.Cid, error) {
+func (s *implicitTxnStore) Add(ctx context.Context, cfg model.Lens) (string, error) {
 	txn, err := s.newTxn(false)
 	if err != nil {
-		return cid.Undef, err
+		return "", err
 	}
 	defer txn.Discard()
 
 	id, err := add(ctx, cfg, txn)
 	if err != nil {
-		return cid.Undef, err
+		return "", err
 	}
 
 	err = txn.Commit()
 	if err != nil {
-		return cid.Undef, err
+		return "", err
 	}
 
 	return id, nil
 }
 
-func (s *explicitTxnStore) Add(ctx context.Context, cfg model.Lens) (cid.Cid, error) {
+func (s *explicitTxnStore) Add(ctx context.Context, cfg model.Lens) (string, error) {
 	return add(ctx, cfg, s.txn)
 }
 

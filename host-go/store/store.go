@@ -30,7 +30,7 @@ type Store interface {
 	// Add stores the given Lens and returns its content ID.
 	//
 	// Two identical Lenses will result in the same content ID, and only a single copy will be stored.
-	Add(ctx context.Context, cfg model.Lens) (cid.Cid, error)
+	Add(ctx context.Context, cfg model.Lens) (string, error)
 
 	// List fetches all the stored Lenses from the store and returns them mapped by their content ID.
 	List(ctx context.Context) (map[cid.Cid]model.Lens, error)
@@ -128,30 +128,30 @@ func NewWithRepository(
 	}
 }
 
-func add(ctx context.Context, cfg model.Lens, txn *txn) (cid.Cid, error) {
+func add(ctx context.Context, cfg model.Lens, txn *txn) (string, error) {
 	configLink, err := writeConfigBlock(ctx, txn.linkSystem, txn.maxBlockSize, cfg)
 	if err != nil {
-		return cid.Undef, err
+		return "", err
 	}
 
 	err = txn.repository.Add(ctx, configLink.String(), cfg)
 	if err != nil {
-		return cid.Undef, err
+		return "", err
 	}
 
 	// Index the ids of the config blocks so that we can rapidly access them without having to scan the entire blockstore
 	// This is especially important if the blockstore is provided by users and may contain blocks not owned by LensVM.
 	err = txn.indexstore.Set(ctx, []byte(configLink.Binary()), []byte{})
 	if err != nil {
-		return cid.Undef, err
+		return "", err
 	}
 
 	_, configCID, err := cid.CidFromBytes([]byte(configLink.Binary()))
 	if err != nil {
-		return cid.Undef, err
+		return "", err
 	}
 
-	return configCID, nil
+	return configCID.String(), nil
 }
 
 func list(ctx context.Context, txn *txn) (map[cid.Cid]model.Lens, error) {
