@@ -8,7 +8,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ipfs/go-cid"
 	"github.com/sourcenetwork/immutable/enumerable"
 	"github.com/sourcenetwork/lens/host-go/node"
 	"github.com/sourcenetwork/lens/host-go/store"
@@ -20,7 +19,7 @@ type State struct {
 
 	Nodes []*NodeInfo
 
-	LensIDs   []cid.Cid
+	LensIDs   []string
 	WasmBytes [][]byte
 }
 

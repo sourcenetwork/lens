@@ -30,10 +30,10 @@ type Store interface {
 	// Add stores the given Lens and returns its content ID.
 	//
 	// Two identical Lenses will result in the same content ID, and only a single copy will be stored.
-	Add(ctx context.Context, cfg model.Lens) (cid.Cid, error)
+	Add(ctx context.Context, cfg model.Lens) (string, error)
 
 	// List fetches all the stored Lenses from the store and returns them mapped by their content ID.
-	List(ctx context.Context) (map[cid.Cid]model.Lens, error)
+	List(ctx context.Context) (map[string]model.Lens, error)
 
 	// Reload fetches all stored Lenses and uses them to overwrite any cached instances held by the in
 	// memory wasm instance repository.
@@ -128,33 +128,33 @@ func NewWithRepository(
 	}
 }
 
-func add(ctx context.Context, cfg model.Lens, txn *txn) (cid.Cid, error) {
+func add(ctx context.Context, cfg model.Lens, txn *txn) (string, error) {
 	configLink, err := writeConfigBlock(ctx, txn.linkSystem, txn.maxBlockSize, cfg)
 	if err != nil {
-		return cid.Undef, err
+		return "", err
 	}
 
 	err = txn.repository.Add(ctx, configLink.String(), cfg)
 	if err != nil {
-		return cid.Undef, err
+		return "", err
 	}
 
 	// Index the ids of the config blocks so that we can rapidly access them without having to scan the entire blockstore
 	// This is especially important if the blockstore is provided by users and may contain blocks not owned by LensVM.
 	err = txn.indexstore.Set(ctx, []byte(configLink.Binary()), []byte{})
 	if err != nil {
-		return cid.Undef, err
+		return "", err
 	}
 
 	_, configCID, err := cid.CidFromBytes([]byte(configLink.Binary()))
 	if err != nil {
-		return cid.Undef, err
+		return "", err
 	}
 
-	return configCID, nil
+	return configCID.String(), nil
 }
 
-func list(ctx context.Context, txn *txn) (map[cid.Cid]model.Lens, error) {
+func list(ctx context.Context, txn *txn) (map[string]model.Lens, error) {
 	iter, err := txn.indexstore.Iterator(
 		ctx,
 		corekv.IterOptions{
@@ -165,7 +165,7 @@ func list(ctx context.Context, txn *txn) (map[cid.Cid]model.Lens, error) {
 		return nil, err
 	}
 
-	results := map[cid.Cid]model.Lens{}
+	results := map[string]model.Lens{}
 	for {
 		hasValue, err := iter.Next()
 		if err != nil {
@@ -185,7 +185,7 @@ func list(ctx context.Context, txn *txn) (map[cid.Cid]model.Lens, error) {
 		if err != nil {
 			return nil, errors.Join(err, iter.Close())
 		}
-		results[configCID] = config
+		results[configCID.String()] = config
 	}
 
 	return results, iter.Close()
@@ -197,6 +197,10 @@ func transform(
 	id string,
 	txn *txn,
 ) (enumerable.Enumerable[Document], error) {
+	if err := assertIsCid(id); err != nil {
+		return nil, err
+	}
+
 	return txn.repository.Transform(ctx, source, id)
 }
 
@@ -206,6 +210,10 @@ func inverse(
 	id string,
 	txn *txn,
 ) (enumerable.Enumerable[Document], error) {
+	if err := assertIsCid(id); err != nil {
+		return nil, err
+	}
+
 	return txn.repository.Inverse(ctx, source, id)
 }
 
@@ -216,7 +224,7 @@ func reload(ctx context.Context, txn *txn) error {
 	}
 
 	for cid, lens := range lenses {
-		err = txn.repository.Add(ctx, cid.String(), lens)
+		err = txn.repository.Add(ctx, cid, lens)
 		if err != nil {
 			return err
 		}
@@ -271,4 +279,9 @@ func getLinkPrototype() cidlink.LinkPrototype {
 		MhType:   uint64(multicodec.Sha2_256),
 		MhLength: 32,
 	}}
+}
+
+func assertIsCid(input string) error {
+	_, err := cid.Parse(input)
+	return err
 }
