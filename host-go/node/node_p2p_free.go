@@ -20,7 +20,6 @@ import (
 type Options struct {
 	Path                immutable.Option[string]
 	Rootstore           immutable.Option[corekv.TxnReaderWriter]
-	TxnSource           immutable.Option[store.TxnSource]
 	PoolSize            immutable.Option[int]
 	Runtime             immutable.Option[module.Runtime]
 	BlockstoreNamespace immutable.Option[string]
@@ -33,7 +32,7 @@ type Options struct {
 type Node struct {
 	onClose []closer
 	Options Options
-	Store   store.TxnStore
+	Store   store.Store
 }
 
 // WARNING - This option exists only for compatibility reasons, it can never have a
@@ -50,7 +49,7 @@ func WithP2PDisabled(disableP2P bool) Option {
 
 func createNode(
 	ctx context.Context,
-	store store.TxnStore,
+	store store.Store,
 	repository repository.Repository,
 	o Options,
 	onClose []closer,

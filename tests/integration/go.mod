@@ -123,11 +123,11 @@ require (
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.55.0 // indirect
 	github.com/quic-go/webtransport-go v0.9.0 // indirect
-	github.com/sourcenetwork/corekv v0.2.4 // indirect
-	github.com/sourcenetwork/corekv/badger v0.2.4 // indirect
-	github.com/sourcenetwork/corekv/blockstore v0.2.4 // indirect
-	github.com/sourcenetwork/corekv/chunk v0.2.4 // indirect
-	github.com/sourcenetwork/corekv/namespace v0.2.4 // indirect
+	github.com/sourcenetwork/corekv v0.3.0 // indirect
+	github.com/sourcenetwork/corekv/badger v0.3.0 // indirect
+	github.com/sourcenetwork/corekv/blockstore v0.3.0 // indirect
+	github.com/sourcenetwork/corekv/chunk v0.3.0 // indirect
+	github.com/sourcenetwork/corekv/namespace v0.3.0 // indirect
 	github.com/sourcenetwork/corelog v0.0.8 // indirect
 	github.com/sourcenetwork/go-libp2p-pubsub-rpc v0.0.14 // indirect
 	github.com/sourcenetwork/go-p2p v0.1.3 // indirect

@@ -462,9 +462,10 @@ github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVs
 github.com/slok/go-http-metrics v0.13.0/go.mod h1:HIr7t/HbN2sJaunvnt9wKP9xoBBVZFo1/KiHU3b0w+4=
 github.com/smola/gocompat v0.2.0/go.mod h1:1B0MlxbmoZNo3h8guHp8HztB3BSYR5itql9qtVc0ypY=
 github.com/sourcenetwork/corekv/blockstore v0.2.2/go.mod h1:xBNbUMGpDrnvbs39Q+SQTs3MEpUo5jfuc0SH44O0qTs=
+github.com/sourcenetwork/corekv/blockstore v0.3.0/go.mod h1:xBNbUMGpDrnvbs39Q+SQTs3MEpUo5jfuc0SH44O0qTs=
+github.com/sourcenetwork/corekv/chunk v0.3.0/go.mod h1:8oLb1RQ27FUQSrpHx0OTx9r2Kme3WOB2d8JkeCx5veY=
 github.com/sourcenetwork/corekv/namespace v0.2.1/go.mod h1:uidxEQZsJ1eqecq1Zn5NipnFAgxL+VyXB6bPGziBewk=
-github.com/sourcenetwork/go-p2p v0.1.3 h1:+Y8OPlxntb8Ely7p8dHaMC0RT3R1oXwmYlkGu708ZlA=
-github.com/sourcenetwork/go-p2p v0.1.3/go.mod h1:gpPc76Bxm6ZzY76KE+MAH4li4FIkyES0yMdoleVdRfQ=
+github.com/sourcenetwork/corekv/namespace v0.3.0/go.mod h1:uidxEQZsJ1eqecq1Zn5NipnFAgxL+VyXB6bPGziBewk=
 github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572/go.mod h1:w0SWMsp6j9O/dk4/ZpIhL+3CkG8ofA2vuv7k+ltqUMc=
 github.com/spf13/afero v1.1.2/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
 github.com/spf13/cast v1.3.0/go.mod h1:Qx5cxh0v+4UWYiBimWS+eyWzqEqokIECu5etghLkUJE=

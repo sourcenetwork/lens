@@ -22,7 +22,6 @@ import (
 type Options struct {
 	Path                immutable.Option[string]
 	Rootstore           immutable.Option[corekv.TxnReaderWriter]
-	TxnSource           immutable.Option[store.TxnSource]
 	PoolSize            immutable.Option[int]
 	Runtime             immutable.Option[module.Runtime]
 	BlockstoreNamespace immutable.Option[string]
@@ -38,7 +37,7 @@ type Options struct {
 type Node struct {
 	onClose []closer
 	Options Options
-	Store   store.TxnStore
+	Store   store.Store
 	P2P     immutable.Option[*p2p.P2P]
 }
 
@@ -62,7 +61,7 @@ func WithP2Poptions(opts ...sourceP2P.NodeOpt) Option {
 
 func createNode(
 	ctx context.Context,
-	store store.TxnStore,
+	store store.Store,
 	repository repository.Repository,
 	o Options,
 	onClose []closer,

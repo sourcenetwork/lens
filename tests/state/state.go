@@ -8,6 +8,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/sourcenetwork/corekv"
 	"github.com/sourcenetwork/immutable/enumerable"
 	"github.com/sourcenetwork/lens/host-go/node"
 	"github.com/sourcenetwork/lens/host-go/store"
@@ -27,7 +28,8 @@ type NodeInfo struct {
 	Node *node.Node
 	Path string
 
+	Source     corekv.TxnReaderWriter
 	Store      store.Store
-	Txns       []store.Txn
+	Txns       []corekv.Txn
 	Transforms []enumerable.Enumerable[store.Document]
 }

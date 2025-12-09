@@ -8,7 +8,6 @@ import (
 	"github.com/sourcenetwork/corekv"
 	"github.com/sourcenetwork/immutable"
 	"github.com/sourcenetwork/lens/host-go/engine/module"
-	"github.com/sourcenetwork/lens/host-go/store"
 )
 
 // Option is a funtion that sets a config value on the db.
@@ -49,12 +48,6 @@ func WithBlockstoreNamespace(blockstoreNamespace string) Option {
 func WithIndextoreNamespace(indexstoreNamespace string) Option {
 	return func(opts *Options) {
 		opts.IndexstoreNamespace = immutable.Some(indexstoreNamespace)
-	}
-}
-
-func WithTxnSource(txnSource store.TxnSource) Option {
-	return func(opt *Options) {
-		opt.TxnSource = immutable.Some(txnSource)
 	}
 }
 

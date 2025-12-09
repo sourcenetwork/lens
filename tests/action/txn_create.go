@@ -4,10 +4,7 @@
 
 package action
 
-import (
-	"github.com/sourcenetwork/lens/host-go/store"
-	"github.com/stretchr/testify/require"
-)
+import "github.com/sourcenetwork/corekv"
 
 // TxCreate executes the `client tx create` command and appends the returned transaction id
 // to state.Txns.
@@ -26,12 +23,11 @@ func NewTxn() *TxnCreate {
 
 func (a *TxnCreate) Execute() {
 	for _, n := range a.Nodes() {
-		txn, err := n.Node.Store.NewTxn(a.ReadOnly)
-		require.NoError(a.s.T, err)
+		txn := n.Source.NewTxn(a.ReadOnly)
 
 		if a.TxnIndex >= len(n.Txns) {
 			// Expand the slice if needed.
-			n.Txns = append(n.Txns, make([]store.Txn, a.TxnIndex+1)...)
+			n.Txns = append(n.Txns, make([]corekv.Txn, a.TxnIndex+1)...)
 		}
 
 		n.Txns[a.TxnIndex] = txn

@@ -15,17 +15,6 @@ import (
 	"github.com/sourcenetwork/lens/host-go/engine/module"
 )
 
-// TxnRepository represents a repository that may be scoped to a transaction.
-type TxnRepository interface {
-	Repository
-
-	// WithTxn returns a new `Repository` instance scoped to the given transaction.
-	//
-	// Upon transaction commit any changes made via the returned value will be applied
-	// to this `TxnRepository`.
-	WithTxn(txn Txn) Repository
-}
-
 // todo: This file, particularly the `pool` stuff, contains fairly sensitive code that is both
 // cumbersome to fully test with integration/benchmark tests, and can have a significant affect on
 // the users if broken (deadlocks, large performance degradation).  It should have dedicated tests.
@@ -76,101 +65,24 @@ type repository struct {
 	lensPoolsByID     map[string]*pool
 	reversedPoolsByID map[string]*pool
 	poolLock          sync.RWMutex
-
-	// Writable transaction contexts by transaction ID.
-	//
-	// Read-only transaction contexts are not tracked.
-	txnCtxs map[uint64]*txnContext
-	txnLock sync.RWMutex
-}
-
-// txnContext contains uncommitted transaction state tracked by the repository,
-// stuff within here should be accessible from within this transaction but not
-// from outside.
-type txnContext struct {
-	txn               Txn
-	lensPoolsByID     map[string]*pool
-	reversedPoolsByID map[string]*pool
-}
-
-func newTxnCtx(txn Txn) *txnContext {
-	return &txnContext{
-		txn:               txn,
-		lensPoolsByID:     map[string]*pool{},
-		reversedPoolsByID: map[string]*pool{},
-	}
 }
 
 // NewRepository instantiates a new repository.
 func NewRepository(
 	poolSize int,
 	runtime module.Runtime,
-	txnSource TxnSource,
-) TxnRepository {
-	return &implicitTxnRepository{
-		db: txnSource,
-		repository: &repository{
-			poolSize:          poolSize,
-			runtime:           runtime,
-			modulesByPath:     map[string]module.Module{},
-			lensPoolsByID:     map[string]*pool{},
-			reversedPoolsByID: map[string]*pool{},
-			txnCtxs:           map[uint64]*txnContext{},
-		},
+) Repository {
+	return &repository{
+		poolSize:          poolSize,
+		runtime:           runtime,
+		modulesByPath:     map[string]module.Module{},
+		lensPoolsByID:     map[string]*pool{},
+		reversedPoolsByID: map[string]*pool{},
 	}
 }
 
-func (r *repository) getCtx(txn Txn, readonly bool) *txnContext {
-	r.txnLock.RLock()
-	if txnCtx, ok := r.txnCtxs[txn.ID()]; ok {
-		r.txnLock.RUnlock()
-		return txnCtx
-	}
-	r.txnLock.RUnlock()
-
-	txnCtx := newTxnCtx(txn)
-	if readonly {
-		return txnCtx
-	}
-
-	r.txnLock.Lock()
-	r.txnCtxs[txn.ID()] = txnCtx
-	r.txnLock.Unlock()
-
-	txnCtx.txn.OnSuccess(func() {
-		r.poolLock.Lock()
-		for id, locker := range txnCtx.lensPoolsByID {
-			r.lensPoolsByID[id] = locker
-		}
-		for id, locker := range txnCtx.reversedPoolsByID {
-			r.reversedPoolsByID[id] = locker
-		}
-		r.poolLock.Unlock()
-
-		r.txnLock.Lock()
-		delete(r.txnCtxs, txn.ID())
-		r.txnLock.Unlock()
-	})
-
-	txn.OnError(func() {
-		r.txnLock.Lock()
-		delete(r.txnCtxs, txn.ID())
-		r.txnLock.Unlock()
-	})
-
-	txn.OnDiscard(func() {
-		// Delete it to help reduce the build up of memory, the txnCtx will be re-contructed if the
-		// txn is reused after discard.
-		r.txnLock.Lock()
-		delete(r.txnCtxs, txn.ID())
-		r.txnLock.Unlock()
-	})
-
-	return txnCtx
-}
-
-func (r *repository) add(
-	txnCtx *txnContext,
+func (r *repository) Add(
+	ctx context.Context,
 	id string,
 	cfg model.Lens,
 ) error {
@@ -191,11 +103,11 @@ func (r *repository) add(
 		Lenses: inversedModuleCfgs,
 	}
 
-	err := r.cachePool(txnCtx.lensPoolsByID, cfg, id)
+	err := r.cachePool(r.lensPoolsByID, cfg, id)
 	if err != nil {
 		return err
 	}
-	err = r.cachePool(txnCtx.reversedPoolsByID, reversedCfg, id)
+	err = r.cachePool(r.reversedPoolsByID, reversedCfg, id)
 	// For now, checking this error is the best way of determining if a migration has an inverse.
 	// Inverses are optional.
 	if err != nil && err.Error() != "Export `inverse` does not exist" {
@@ -225,20 +137,20 @@ func (r *repository) cachePool(
 	return nil
 }
 
-func (r *repository) transform(
-	txnCtx *txnContext,
+func (r *repository) Transform(
+	ctx context.Context,
 	src enumerable.Enumerable[Document],
 	id string,
 ) (enumerable.Enumerable[Document], error) {
-	return r.appendLens(r.lensPoolsByID, txnCtx.lensPoolsByID, src, id)
+	return r.appendLens(r.lensPoolsByID, r.lensPoolsByID, src, id)
 }
 
-func (r *repository) inverse(
-	txnCtx *txnContext,
+func (r *repository) Inverse(
+	ctx context.Context,
 	src enumerable.Enumerable[Document],
 	id string,
 ) (enumerable.Enumerable[Document], error) {
-	return r.appendLens(r.reversedPoolsByID, txnCtx.reversedPoolsByID, src, id)
+	return r.appendLens(r.reversedPoolsByID, r.reversedPoolsByID, src, id)
 }
 
 func (r *repository) appendLens(

@@ -5,6 +5,7 @@
 package action
 
 import (
+	"github.com/sourcenetwork/corekv"
 	"github.com/sourcenetwork/lens/tests/state"
 )
 
@@ -51,16 +52,16 @@ func (a *TxnAction[T]) SetState(s *state.State) {
 
 func (a *TxnAction[T]) Execute() {
 	for _, n := range a.Nodes() {
-		originalStore := n.Store
+		originalCtx := a.s.Ctx
 
 		// Replace the active store with the transaction, allowing the inner action
 		// to act on the transaction without needing to be aware of it.
-		n.Store = n.Node.Store.WithTxn(n.Txns[a.TxnIndex])
+		a.s.Ctx = corekv.SetCtxTxn(a.s.Ctx, n.Txns[a.TxnIndex])
 
 		a.Action.Execute()
 
 		// Make sure the original store is restored after executing otherwise
 		// subsequent actions will erroneously act on the transaction.
-		n.Store = originalStore
+		a.s.Ctx = originalCtx
 	}
 }

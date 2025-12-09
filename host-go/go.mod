@@ -4,15 +4,13 @@ go 1.24.6
 
 require (
 	github.com/bytecodealliance/wasmtime-go/v35 v35.0.0
-	github.com/dgraph-io/badger/v4 v4.8.0
 	github.com/ipfs/go-cid v0.5.0
 	github.com/ipld/go-ipld-prime v0.21.0
 	github.com/multiformats/go-multicodec v0.9.2
-	github.com/sourcenetwork/corekv v0.2.4
-	github.com/sourcenetwork/corekv/badger v0.2.4
-	github.com/sourcenetwork/corekv/blockstore v0.2.4
-	github.com/sourcenetwork/corekv/chunk v0.2.4
-	github.com/sourcenetwork/corekv/namespace v0.2.4
+	github.com/sourcenetwork/corekv v0.3.0
+	github.com/sourcenetwork/corekv/blockstore v0.3.0
+	github.com/sourcenetwork/corekv/chunk v0.3.0
+	github.com/sourcenetwork/corekv/namespace v0.3.0
 	github.com/sourcenetwork/go-p2p v0.1.3
 	github.com/sourcenetwork/immutable v0.3.0
 	github.com/sourcenetwork/lens/tests/modules v0.0.0
@@ -30,8 +28,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
-	github.com/dgraph-io/ristretto/v2 v2.3.0 // indirect
-	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/filecoin-project/go-clock v0.1.0 // indirect
 	github.com/flynn/noise v1.1.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect

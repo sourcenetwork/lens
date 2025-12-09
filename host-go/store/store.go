@@ -16,6 +16,8 @@ import (
 	"github.com/ipld/go-ipld-prime/storage"
 	"github.com/multiformats/go-multicodec"
 	"github.com/sourcenetwork/corekv"
+	"github.com/sourcenetwork/corekv/chunk"
+	"github.com/sourcenetwork/corekv/namespace"
 	"github.com/sourcenetwork/immutable"
 	"github.com/sourcenetwork/immutable/enumerable"
 
@@ -25,6 +27,10 @@ import (
 )
 
 const defaultBlockMaxSize int = 1024 * 1024 * 3
+
+// The key used to calculate keyLen is descriptive only, they are all the same length, and there
+// is nothing special about this one.
+var keyLen int = len([]byte("bafybeiet6foxcipesjurdqi4zpsgsiok5znqgw4oa5poef6qtiby5hlpzy"))
 
 type Store interface {
 	// Add stores the given Lens and returns its content ID.
@@ -58,45 +64,40 @@ type Store interface {
 	) (enumerable.Enumerable[Document], error)
 }
 
-type TxnStore interface {
-	Store
-
-	// NewTxn returns a new transaction.
-	NewTxn(readonly bool) (Txn, error)
-
-	// WithTxn returns a new `Store` instance scoped to the given transaction.
-	//
-	// Upon transaction commit any changes made via the returned value will be applied
-	// to this `TxnStore`.
-	WithTxn(txn Txn) Store
+type store struct {
+	repository   repository.Repository
+	linkSystem   *linking.LinkSystem
+	indexstore   corekv.ReaderWriter
+	maxBlockSize int
 }
 
 // New creates a new `TxnStore` using the given parameters.
 //
 // The blockstore namespace may safely be shared by other components if desired.
 func New(
-	txnSource TxnSource,
+	rootstore corekv.ReaderWriter,
 	poolSize int,
 	runtime module.Runtime,
 	blockstoreNamespace string,
 	blockstoreChunksize immutable.Option[int],
 	maxBlockSize immutable.Option[int],
 	indexstoreNamespace string,
-) TxnStore {
+) Store {
 	var maxSize int
 	if maxBlockSize.HasValue() {
 		maxSize = maxBlockSize.Value()
 	} else {
 		maxSize = defaultBlockMaxSize
 	}
-
-	return &implicitTxnStore{
-		txnSource:           txnSource,
-		repository:          repository.NewRepository(poolSize, runtime, &repositoryTxnSource{src: txnSource}),
-		blockstoreNamespace: blockstoreNamespace,
-		blockstoreChunksize: blockstoreChunksize,
-		maxBlockSize:        maxSize,
-		indexstoreNamespace: indexstoreNamespace,
+	var bStore corekv.ReaderWriter = namespace.Wrap(rootstore, []byte(blockstoreNamespace))
+	if blockstoreChunksize.HasValue() {
+		bStore = chunk.NewSized(bStore, blockstoreChunksize.Value(), keyLen)
+	}
+	return &store{
+		repository:   repository.NewRepository(poolSize, runtime),
+		linkSystem:   makeLinkSystem(bStore),
+		indexstore:   namespace.Wrap(rootstore, []byte(indexstoreNamespace)),
+		maxBlockSize: maxSize,
 	}
 }
 
@@ -104,44 +105,45 @@ func New(
 //
 // The blockstore namespace may safely be shared by other components if desired.
 func NewWithRepository(
-	txnSource TxnSource,
-	repository repository.TxnRepository,
+	repository repository.Repository,
+	rootstore corekv.ReaderWriter,
 	blockstoreNamespace string,
 	blockstoreChunksize immutable.Option[int],
 	maxBlockSize immutable.Option[int],
 	indexstoreNamespace string,
-) TxnStore {
+) Store {
 	var maxSize int
 	if maxBlockSize.HasValue() {
 		maxSize = maxBlockSize.Value()
 	} else {
 		maxSize = defaultBlockMaxSize
 	}
-
-	return &implicitTxnStore{
-		txnSource:           txnSource,
-		repository:          repository,
-		blockstoreNamespace: blockstoreNamespace,
-		blockstoreChunksize: blockstoreChunksize,
-		maxBlockSize:        maxSize,
-		indexstoreNamespace: indexstoreNamespace,
+	var bStore corekv.ReaderWriter = namespace.Wrap(rootstore, []byte(blockstoreNamespace))
+	if blockstoreChunksize.HasValue() {
+		bStore = chunk.NewSized(bStore, blockstoreChunksize.Value(), keyLen)
+	}
+	return &store{
+		repository:   repository,
+		linkSystem:   makeLinkSystem(bStore),
+		indexstore:   namespace.Wrap(rootstore, []byte(indexstoreNamespace)),
+		maxBlockSize: maxSize,
 	}
 }
 
-func add(ctx context.Context, cfg model.Lens, txn *txn) (string, error) {
-	configLink, err := writeConfigBlock(ctx, txn.linkSystem, txn.maxBlockSize, cfg)
+func (s *store) Add(ctx context.Context, cfg model.Lens) (string, error) {
+	configLink, err := writeConfigBlock(ctx, s.linkSystem, s.maxBlockSize, cfg)
 	if err != nil {
 		return "", err
 	}
 
-	err = txn.repository.Add(ctx, configLink.String(), cfg)
+	err = s.repository.Add(ctx, configLink.String(), cfg)
 	if err != nil {
 		return "", err
 	}
 
 	// Index the ids of the config blocks so that we can rapidly access them without having to scan the entire blockstore
 	// This is especially important if the blockstore is provided by users and may contain blocks not owned by LensVM.
-	err = txn.indexstore.Set(ctx, []byte(configLink.Binary()), []byte{})
+	err = s.indexstore.Set(ctx, []byte(configLink.Binary()), []byte{})
 	if err != nil {
 		return "", err
 	}
@@ -154,8 +156,8 @@ func add(ctx context.Context, cfg model.Lens, txn *txn) (string, error) {
 	return configCID.String(), nil
 }
 
-func list(ctx context.Context, txn *txn) (map[string]model.Lens, error) {
-	iter, err := txn.indexstore.Iterator(
+func (s *store) List(ctx context.Context) (map[string]model.Lens, error) {
+	iter, err := s.indexstore.Iterator(
 		ctx,
 		corekv.IterOptions{
 			KeysOnly: true,
@@ -181,7 +183,7 @@ func list(ctx context.Context, txn *txn) (map[string]model.Lens, error) {
 			return nil, errors.Join(err, iter.Close())
 		}
 
-		config, err := LoadLensModel(ctx, txn.linkSystem, configCID)
+		config, err := LoadLensModel(ctx, s.linkSystem, configCID)
 		if err != nil {
 			return nil, errors.Join(err, iter.Close())
 		}
@@ -191,40 +193,38 @@ func list(ctx context.Context, txn *txn) (map[string]model.Lens, error) {
 	return results, iter.Close()
 }
 
-func transform(
+func (s *store) Transform(
 	ctx context.Context,
 	source enumerable.Enumerable[Document],
 	id string,
-	txn *txn,
 ) (enumerable.Enumerable[Document], error) {
 	if err := assertIsCid(id); err != nil {
 		return nil, err
 	}
 
-	return txn.repository.Transform(ctx, source, id)
+	return s.repository.Transform(ctx, source, id)
 }
 
-func inverse(
+func (s *store) Inverse(
 	ctx context.Context,
 	source enumerable.Enumerable[Document],
 	id string,
-	txn *txn,
 ) (enumerable.Enumerable[Document], error) {
 	if err := assertIsCid(id); err != nil {
 		return nil, err
 	}
 
-	return txn.repository.Inverse(ctx, source, id)
+	return s.repository.Inverse(ctx, source, id)
 }
 
-func reload(ctx context.Context, txn *txn) error {
-	lenses, err := list(ctx, txn)
+func (s *store) Reload(ctx context.Context) error {
+	lenses, err := s.List(ctx)
 	if err != nil {
 		return err
 	}
 
 	for cid, lens := range lenses {
-		err = txn.repository.Add(ctx, cid, lens)
+		err = s.repository.Add(ctx, cid, lens)
 		if err != nil {
 			return err
 		}
