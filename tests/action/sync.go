@@ -21,7 +21,7 @@ func (a *Sync) Execute() {
 	lensID := replace(a.s, a.LensID)
 
 	for _, n := range a.Nodes() {
-		err := n.Node.P2P.Value().SyncLens(a.s.Ctx, lensID)
+		err := n.P2P.Value().SyncLens(a.s.Ctx, lensID)
 		require.NoError(a.s.T, err)
 	}
 }

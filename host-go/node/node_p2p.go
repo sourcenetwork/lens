@@ -39,7 +39,7 @@ type Node struct {
 	onClose []closer
 	Options Options
 	Store   store.TxnStore
-	P2P     immutable.Option[*p2p.P2P]
+	P2P     immutable.Option[p2p.TxnP2P]
 }
 
 func WithP2P(host p2p.Host) Option {
@@ -63,11 +63,11 @@ func WithP2Poptions(opts ...sourceP2P.NodeOpt) Option {
 func createNode(
 	ctx context.Context,
 	store store.TxnStore,
-	repository repository.Repository,
+	repository repository.TxnRepository,
 	o Options,
 	onClose []closer,
 ) (*Node, error) {
-	var p2pSys immutable.Option[*p2p.P2P]
+	var p2pSys immutable.Option[p2p.TxnP2P]
 	if !o.DisableP2P {
 		var host p2p.Host
 		if o.P2P.HasValue() {
@@ -93,7 +93,7 @@ func createNode(
 			}
 		}
 
-		p2pSys = immutable.Some(p2p.New(host, repository, o.Rootstore.Value(), o.IndexstoreNamespace.Value()))
+		p2pSys = immutable.Some(p2p.New(host, repository, o.TxnSource.Value(), o.IndexstoreNamespace.Value()))
 	}
 
 	return &Node{
