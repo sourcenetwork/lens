@@ -8,7 +8,9 @@ import (
 	badgerds "github.com/dgraph-io/badger/v4"
 	"github.com/sourcenetwork/corekv/badger"
 	sourceP2P "github.com/sourcenetwork/go-p2p"
+	"github.com/sourcenetwork/immutable"
 	"github.com/sourcenetwork/lens/host-go/node"
+	"github.com/sourcenetwork/lens/host-go/p2p"
 	"github.com/sourcenetwork/lens/tests/state"
 	"github.com/stretchr/testify/require"
 )
@@ -65,11 +67,17 @@ func (a *NewBadgerFileNode) Execute() {
 		require.NoError(a.s.T, err)
 	}
 
+	var coalescedP2P immutable.Option[p2p.P2P]
+	if n.P2P.HasValue() {
+		coalescedP2P = immutable.Some[p2p.P2P](n.P2P.Value())
+	}
+
 	a.s.Nodes = append(
 		a.s.Nodes,
 		&state.NodeInfo{
 			Node:  n,
 			Store: n.Store,
+			P2P:   coalescedP2P,
 			Path:  path,
 		},
 	)
@@ -120,11 +128,17 @@ func (a *NewBadgerMemoryNode) Execute() {
 		require.NoError(a.s.T, err)
 	}
 
+	var coalescedP2P immutable.Option[p2p.P2P]
+	if n.P2P.HasValue() {
+		coalescedP2P = immutable.Some[p2p.P2P](n.P2P.Value())
+	}
+
 	a.s.Nodes = append(
 		a.s.Nodes,
 		&state.NodeInfo{
 			Node:  n,
 			Store: n.Store,
+			P2P:   coalescedP2P,
 		},
 	)
 }

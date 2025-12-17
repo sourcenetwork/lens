@@ -51,7 +51,7 @@ func (n *txnCommit) Apply(source action.Actions) action.Actions {
 		case *action.NewNode:
 			lastStartIndex = i
 
-		case *action.Add:
+		case *action.Add, *action.Sync:
 			lastWriteIndex = i
 
 		case *action.CloseNode:

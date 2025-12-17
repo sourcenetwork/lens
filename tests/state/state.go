@@ -8,8 +8,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/sourcenetwork/immutable"
 	"github.com/sourcenetwork/immutable/enumerable"
 	"github.com/sourcenetwork/lens/host-go/node"
+	"github.com/sourcenetwork/lens/host-go/p2p"
 	"github.com/sourcenetwork/lens/host-go/store"
 )
 
@@ -28,6 +30,7 @@ type NodeInfo struct {
 	Path string
 
 	Store      store.Store
+	P2P        immutable.Option[p2p.P2P]
 	Txns       []store.Txn
 	Transforms []enumerable.Enumerable[store.Document]
 }

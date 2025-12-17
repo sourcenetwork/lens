@@ -5,6 +5,7 @@
 package action
 
 import (
+	"github.com/sourcenetwork/immutable"
 	"github.com/sourcenetwork/lens/tests/state"
 )
 
@@ -52,15 +53,23 @@ func (a *TxnAction[T]) SetState(s *state.State) {
 func (a *TxnAction[T]) Execute() {
 	for _, n := range a.Nodes() {
 		originalStore := n.Store
+		originalP2P := n.P2P
 
-		// Replace the active store with the transaction, allowing the inner action
+		txn := n.Txns[a.TxnIndex]
+		// Replace the active store and p2p with the transaction, allowing the inner action
 		// to act on the transaction without needing to be aware of it.
-		n.Store = n.Node.Store.WithTxn(n.Txns[a.TxnIndex])
+		n.Store = n.Node.Store.WithTxn(txn)
+		if n.P2P.HasValue() {
+			n.P2P = immutable.Some(
+				n.Node.P2P.Value().WithTxn(txn),
+			)
+		}
 
 		a.Action.Execute()
 
 		// Make sure the original store is restored after executing otherwise
 		// subsequent actions will erroneously act on the transaction.
 		n.Store = originalStore
+		n.P2P = originalP2P
 	}
 }

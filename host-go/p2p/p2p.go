@@ -12,49 +12,65 @@ import (
 	cidlink "github.com/ipld/go-ipld-prime/linking/cid"
 	"github.com/sourcenetwork/corekv"
 	"github.com/sourcenetwork/corekv/blockstore"
-	"github.com/sourcenetwork/corekv/namespace"
 	"github.com/sourcenetwork/lens/host-go/repository"
 	"github.com/sourcenetwork/lens/host-go/store"
 )
 
-type P2P struct {
-	Host       Host
-	repository repository.Repository
-	indexstore corekv.ReaderWriter
+type P2P interface {
+	Host() Host
+
+	// SyncLens synchronously tries that the given lens ID exists locally in this node.
+	//
+	// If the lens does not exist locally it will try and fetch it from any connected nodes.
+	//
+	// It will keep trying to fetch the lens until it either succeeds, or the context times out.
+	SyncLens(ctx context.Context, id string) error
+}
+
+type TxnP2P interface {
+	P2P
+
+	WithTxn(txn Txn) P2P
+}
+type Txn interface {
+	repository.Txn
+	corekv.ReaderWriter
 }
 
 func New(
 	host Host,
-	repository repository.Repository,
-	rootstore corekv.ReaderWriter,
+	repository repository.TxnRepository,
+	txnSource store.TxnSource,
 	indexNamespace string,
-) *P2P {
-	return &P2P{
-		Host:       host,
-		repository: repository,
-		indexstore: namespace.Wrap(rootstore, []byte(indexNamespace)),
+) TxnP2P {
+	return &implicitTxnP2P{
+		host:           host,
+		repository:     repository,
+		txnSource:      txnSource,
+		indexNamespace: indexNamespace,
 	}
 }
 
-// SyncLens synchronously tries that the given lens ID exists locally in this node.
-//
-// If the lens does not exist locally it will try and fetch it from any connected nodes.
-//
-// It will keep trying to fetch the lens until it either succeeds, or the context times out.
-func (p *P2P) SyncLens(ctx context.Context, id string) error {
+func syncLens(
+	ctx context.Context,
+	id string,
+	host Host,
+	repository repository.Repository,
+	indexstore corekv.ReaderWriter,
+) error {
 	cid, err := cid.Parse(id)
 	if err != nil {
 		return err
 	}
 
-	linkSys := makeLinkSystem(p.Host.IPLDStore())
+	linkSys := makeLinkSystem(host.IPLDStore())
 
 	model, err := store.LoadLensModel(ctx, &linkSys, cid)
 	if err != nil {
 		return err
 	}
 
-	err = p.repository.Add(ctx, id, model)
+	err = repository.Add(ctx, id, model)
 	if err != nil {
 		return err
 	}
@@ -63,7 +79,7 @@ func (p *P2P) SyncLens(ctx context.Context, id string) error {
 	//
 	// We can avoid bothering with a txn here so long as this is the only write required outside of the blockstore.
 	// If another call is added, they likely should be written as part of the same transaction.
-	err = p.indexstore.Set(ctx, cid.Bytes(), []byte{})
+	err = indexstore.Set(ctx, cid.Bytes(), []byte{})
 	if err != nil {
 		return err
 	}
