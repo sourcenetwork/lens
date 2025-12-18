@@ -13,12 +13,13 @@ import (
 	"github.com/sourcenetwork/lens/tests/integration"
 )
 
-func TestTransform_EmptyString_Errors(t *testing.T) {
+func TestTransform_EmptyString(t *testing.T) {
+	// This test ensures that empty strings behave
+	// in a way that DefraDB depends upon.
 	test := &integration.Test{
 		Actions: []action.Action{
 			&action.Transform{
-				LensID:        "",
-				ExpectedError: "invalid cid: cid too short",
+				LensID: "",
 			},
 		},
 	}
@@ -26,13 +27,14 @@ func TestTransform_EmptyString_Errors(t *testing.T) {
 	test.Execute(t)
 }
 
-func TestTransform_InverseEmptyString_Errors(t *testing.T) {
+func TestTransform_InverseEmptyString(t *testing.T) {
+	// This test ensures that empty strings behave
+	// in a way that DefraDB depends upon.
 	test := &integration.Test{
 		Actions: []action.Action{
 			&action.Transform{
-				LensID:        "",
-				Inverse:       true,
-				ExpectedError: "invalid cid: cid too short",
+				LensID:  "",
+				Inverse: true,
 			},
 		},
 	}
