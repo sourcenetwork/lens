@@ -38,6 +38,12 @@ var hostExecutablePaths = []string{
 	),
 }
 
+func init() {
+	if rustHostPath := os.Getenv("DEFRADB_RS_LENS_HOST_BIN"); rustHostPath != "" {
+		hostExecutablePaths = append(hostExecutablePaths, rustHostPath)
+	}
+}
+
 func getPathRelativeToProjectRoot(relativePath string) string {
 	_, filename, _, _ := runtime.Caller(0)
 	root := path.Dir(path.Dir(path.Dir(path.Dir(filename))))
