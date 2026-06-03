@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+// Excluded on windows/js builds: those platforms default to the wazero/js runtimes, which
+// still reset by overwriting linear memory and therefore still leak (see issue #155).
 //go:build !windows && !js
 
 package tests
