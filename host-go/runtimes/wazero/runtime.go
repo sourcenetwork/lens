@@ -82,7 +82,8 @@ func newInstanceHandles(
 	runtimeConfig := wazero.NewRuntimeConfig().WithCompilationCache(compilationCache)
 	rt := wazero.NewRuntimeWithConfig(ctx, runtimeConfig)
 	// Close the runtime (and the instance/memory it owns) if we fail before returning
-	// successfully, so an errored NewInstance/Reset does not leak it (issue #158).
+	// successfully, so an errored NewInstance/Reset does not leak it (issue #158). The
+	// close error is discarded so it cannot mask the construction error we return.
 	defer func() {
 		if err != nil {
 			_ = rt.Close(ctx)
@@ -229,7 +230,9 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 			oldRuntime := handles.runtime
 			*handles = *newHandles
 			// Free the old runtime (and its instance and linear memory) now rather than waiting
-			// for the GC, mirroring the wasmtime fix (issue #159).
+			// for the GC, mirroring the wasmtime fix (issue #159). The close error is intentionally
+			// discarded, not routed to resetErr: it concerns cleanup of the old, already-replaced
+			// runtime and must not fail Alloc/Transform on the freshly-built instance.
 			_ = oldRuntime.Close(ctx)
 		},
 		OwnedBy: handles,
