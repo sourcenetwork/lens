@@ -22,17 +22,14 @@ import (
 const Name string = "wasmtime"
 
 type wRuntime struct {
-	store *wasmtime.Store
+	engine *wasmtime.Engine
 }
 
 var _ module.Runtime = (*wRuntime)(nil)
 
 func New() module.Runtime {
-	engine := wasmtime.NewEngine()
-	store := wasmtime.NewStore(engine)
-
 	return &wRuntime{
-		store: store,
+		engine: wasmtime.NewEngine(),
 	}
 }
 
@@ -48,88 +45,93 @@ func (rt *wRuntime) Name() string {
 }
 
 func (rt *wRuntime) NewModule(wasmBytes []byte) (module.Module, error) {
-	module, err := wasmtime.NewModule(rt.store.Engine, wasmBytes)
+	mod, err := wasmtime.NewModule(rt.engine, wasmBytes)
 	if err != nil {
 		return nil, err
 	}
 
 	return &wModule{
 		rt:     rt,
-		module: module,
+		module: mod,
 	}, nil
 }
 
-func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) (module.Instance, error) {
-	// We require a non-nil placeholder else Go will panic upon reassignment (nil pointer de-reference)
-	nextFunction := func() module.MemSize { return 0 }
-	nextImport := wasmtime.WrapFunc(
-		m.rt.store,
-		func() module.MemSize {
-			return nextFunction()
-		},
-	)
+// instanceHandles holds all per-instance wasmtime resources. Storing them behind a pointer
+// lets Reset swap the contents in-place so that the Alloc/Transform/Memory closures — which
+// all capture the same *instanceHandles — automatically see the fresh store.
+type instanceHandles struct {
+	store     *wasmtime.Store
+	memory    *wasmtime.Memory
+	alloc     *wasmtime.Func
+	transform *wasmtime.Func
+}
 
-	instance, err := wasmtime.NewInstance(m.rt.store, m.module, []wasmtime.AsExtern{nextImport})
+// newInstanceHandles creates a fresh wasmtime store, instantiates mod, wires the nextFnPtr
+// import, and applies set_param when params is non-empty.
+func newInstanceHandles(
+	eng *wasmtime.Engine,
+	mod *wasmtime.Module,
+	fnName string,
+	params map[string]any,
+	nextFnPtr *func() module.MemSize,
+) (*instanceHandles, error) {
+	store := wasmtime.NewStore(eng)
+
+	nextImport := wasmtime.WrapFunc(store, func() module.MemSize {
+		return (*nextFnPtr)()
+	})
+
+	inst, err := wasmtime.NewInstance(store, mod, []wasmtime.AsExtern{nextImport})
 	if err != nil {
-		return module.Instance{}, err
+		return nil, err
 	}
 
-	mem := instance.GetExport(m.rt.store, "memory")
-	if mem == nil {
-		return module.Instance{}, errors.New(fmt.Sprintf("Export `%s` does not exist", "memory"))
+	memExport := inst.GetExport(store, "memory")
+	if memExport == nil {
+		return nil, errors.New(fmt.Sprintf("Export `%s` does not exist", "memory"))
 	}
-
-	memory := mem.Memory()
+	memory := memExport.Memory()
 	if memory == nil {
-		return module.Instance{}, errors.New(fmt.Sprintf("Export `%s` does not exist", "memory"))
+		return nil, errors.New(fmt.Sprintf("Export `%s` does not exist", "memory"))
 	}
 
-	alloc := instance.GetFunc(m.rt.store, "alloc")
+	alloc := inst.GetFunc(store, "alloc")
 	if alloc == nil {
-		return module.Instance{}, errors.New(fmt.Sprintf("Export `%s` does not exist", "alloc"))
+		return nil, errors.New(fmt.Sprintf("Export `%s` does not exist", "alloc"))
 	}
 
-	transform := instance.GetFunc(m.rt.store, functionName)
+	transform := inst.GetFunc(store, fnName)
 	if transform == nil {
-		return module.Instance{}, errors.New(fmt.Sprintf("Export `%s` does not exist", functionName))
-	}
-
-	params := map[string]any{}
-	// Merge the param sets into a single map in case more than
-	// one map is provided.
-	for _, paramSet := range paramSets {
-		for key, value := range paramSet {
-			params[key] = value
-		}
+		return nil, errors.New(fmt.Sprintf("Export `%s` does not exist", fnName))
 	}
 
 	if len(params) > 0 {
-		setParam := instance.GetFunc(m.rt.store, "set_param")
+		setParam := inst.GetFunc(store, "set_param")
 		if setParam == nil {
-			return module.Instance{}, errors.New(fmt.Sprintf("Export `%s` does not exist", "set_param"))
+			return nil, errors.New(fmt.Sprintf("Export `%s` does not exist", "set_param"))
 		}
 
 		sourceBytes, err := json.Marshal(params)
 		if err != nil {
-			return module.Instance{}, err
+			return nil, err
 		}
 
-		index, err := alloc.Call(m.rt.store, module.TypeIdSize+module.MemSize(len(sourceBytes))+module.LenSize)
+		index, err := alloc.Call(store, module.TypeIdSize+module.MemSize(len(sourceBytes))+module.LenSize)
 		if err != nil {
-			return module.Instance{}, err
+			return nil, err
 		}
 
-		mem := module.NewBytesMemory(memory.UnsafeData(m.rt.store))
+		mem := module.NewBytesMemory(memory.UnsafeData(store))
 		w := io.NewOffsetWriter(mem, int64(index.(module.MemSize)))
 
 		err = pipes.WriteItem(w, module.JSONTypeID, sourceBytes)
 		if err != nil {
-			return module.Instance{}, err
+			return nil, err
 		}
 
-		index, err = setParam.Call(m.rt.store, index)
+		index, err = setParam.Call(store, index)
 		if err != nil {
-			return module.Instance{}, err
+			return nil, err
 		}
 		r := io.NewSectionReader(mem, int64(index.(module.MemSize)), math.MaxInt64)
 
@@ -137,49 +139,82 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 		// from memory using `pipes.GetItem`.
 		id, data, err := pipes.ReadItem(r)
 		if id.IsError() {
-			return module.Instance{}, errors.New(string(data))
+			return nil, errors.New(string(data))
 		}
 		if err != nil {
-			return module.Instance{}, err
+			return nil, err
 		}
 	}
 
-	memSlice := memory.UnsafeData(m.rt.store)
-	initialState := make([]byte, len(memSlice))
-	copy(initialState, memSlice)
+	return &instanceHandles{
+		store:     store,
+		memory:    memory,
+		alloc:     alloc,
+		transform: transform,
+	}, nil
+}
+
+func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) (module.Instance, error) {
+	params := map[string]any{}
+	for _, paramSet := range paramSets {
+		for key, value := range paramSet {
+			params[key] = value
+		}
+	}
+
+	var nextFn func() module.MemSize = func() module.MemSize { return 0 }
+
+	handles, err := newInstanceHandles(m.rt.engine, m.module, functionName, params, &nextFn)
+	if err != nil {
+		return module.Instance{}, err
+	}
+
+	var resetErr error
 
 	return module.Instance{
 		Alloc: func(u module.MemSize) (module.MemSize, error) {
-			r, err := alloc.Call(m.rt.store, u)
+			if resetErr != nil {
+				return 0, resetErr
+			}
+			r, err := handles.alloc.Call(handles.store, u)
 			if err != nil {
 				return 0, err
 			}
 			return r.(module.MemSize), err
 		},
 		Transform: func(next func() module.MemSize) (module.MemSize, error) {
+			if resetErr != nil {
+				return 0, resetErr
+			}
 			// By assigning the next function immediately prior to calling transform, we allow multiple
 			// pipeline stages to share the same wasm instance - provided they are not called concurrently.
 			// This also allows module state to be shared across pipeline stages.
-			nextFunction = next
-			r, err := transform.Call(m.rt.store)
+			nextFn = next
+			r, err := handles.transform.Call(handles.store)
 			if err != nil {
 				return 0, err
 			}
 			return r.(module.MemSize), err
 		},
 		Memory: func() module.Memory {
-			return module.NewBytesMemory(memory.UnsafeData(m.rt.store))
+			return module.NewBytesMemory(handles.memory.UnsafeData(handles.store))
 		},
 		Reset: func() {
-			initialLen := len(initialState)
-			currentMemory := memory.UnsafeData(m.rt.store)
-
-			copy(currentMemory, initialState)
-
-			for i := initialLen; i < len(currentMemory); i++ {
-				currentMemory[i] = 0
+			nextFn = func() module.MemSize { return 0 }
+			newHandles, err := newInstanceHandles(m.rt.engine, m.module, functionName, params, &nextFn)
+			if err != nil {
+				resetErr = err
+				return
 			}
+			resetErr = nil
+			oldStore := handles.store
+			*handles = *newHandles
+			// Free the old store's C-allocated resources (instance state and linear memory) now.
+			// The GC finalizer would do this eventually, but wasm memory lives outside the Go heap
+			// and exerts no pressure on the Go GC, so dropped stores pile up faster than they are
+			// collected (issue #155).
+			oldStore.Close()
 		},
-		OwnedBy: instance,
+		OwnedBy: handles,
 	}, nil
 }

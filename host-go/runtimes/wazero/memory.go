@@ -22,3 +22,9 @@ func (m *memory) WriteAt(src []byte, offset int64) (int, error) {
 	m.memory.Write(uint32(offset), src)
 	return len(src), nil
 }
+
+func (m *memory) Size() uint32 {
+	// wasm linear memory grows in 64 KiB pages per the spec.
+	const wasmPageSize = 65536
+	return m.memory.Size() * wasmPageSize
+}
