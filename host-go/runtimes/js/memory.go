@@ -30,3 +30,7 @@ func (m *memory) WriteAt(src []byte, offset int64) (int, error) {
 	n := js.CopyBytesToJS(dst, src)
 	return n, nil
 }
+
+func (m *memory) Size() uint32 {
+	return uint32(m.array.Length())
+}

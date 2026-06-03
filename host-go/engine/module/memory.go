@@ -11,6 +11,8 @@ import "io"
 type Memory interface {
 	io.ReaderAt
 	io.WriterAt
+	// Size returns the total size of linear memory in bytes.
+	Size() uint32
 }
 
 var _ (Memory) = (*BytesMemory)(nil)
@@ -35,4 +37,9 @@ func (s *BytesMemory) ReadAt(dst []byte, offset int64) (int, error) {
 func (s *BytesMemory) WriteAt(src []byte, offset int64) (int, error) {
 	n := copy(s.data[offset:], src)
 	return n, nil
+}
+
+// Size returns the total size of linear memory in bytes.
+func (s *BytesMemory) Size() uint32 {
+	return uint32(len(s.data))
 }
