@@ -77,12 +77,19 @@ func newInstanceHandles(
 	fnName string,
 	params map[string]any,
 	nextFnPtr *func() module.MemSize,
-) (*instanceHandles, error) {
+) (_ *instanceHandles, err error) {
 	ctx := context.TODO()
 	runtimeConfig := wazero.NewRuntimeConfig().WithCompilationCache(compilationCache)
 	rt := wazero.NewRuntimeWithConfig(ctx, runtimeConfig)
+	// Close the runtime (and the instance/memory it owns) if we fail before returning
+	// successfully, so an errored NewInstance/Reset does not leak it (issue #158).
+	defer func() {
+		if err != nil {
+			_ = rt.Close(ctx)
+		}
+	}()
 
-	_, err := rt.NewHostModuleBuilder("lens").
+	_, err = rt.NewHostModuleBuilder("lens").
 		NewFunctionBuilder().
 		WithFunc(func(ctx context.Context) module.MemSize {
 			return (*nextFnPtr)()
