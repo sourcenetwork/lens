@@ -57,49 +57,117 @@ func (rt *wRuntime) NewModule(wasmBytes []byte) (module.Module, error) {
 	}, nil
 }
 
-func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) (module.Instance, error) {
+// instanceHandles holds all per-instance wasmer resources. Storing them behind a pointer
+// lets Reset swap the contents in-place so that the Alloc/Transform/Memory closures — which
+// all capture the same *instanceHandles — automatically see the fresh instance.
+type instanceHandles struct {
+	instance  *wasmer.Instance
+	memory    *wasmer.Memory
+	alloc     *wasmer.Function
+	transform *wasmer.Function
+}
+
+// newInstanceHandles instantiates mod against the shared store, wires the nextFnPtr import,
+// and applies set_param when params is non-empty.
+func newInstanceHandles(
+	store *wasmer.Store,
+	mod *wasmer.Module,
+	fnName string,
+	params map[string]any,
+	nextFnPtr *func() module.MemSize,
+) (*instanceHandles, error) {
 	importObject := wasmer.NewImportObject()
 
-	var nextFunction = func() module.MemSize { return 0 }
 	// Register the `lens.next` function required as an import for wasm lens modules
 	importObject.Register(
 		"lens",
 		map[string]wasmer.IntoExtern{
 			"next": wasmer.NewFunction(
-				m.runtime.store,
+				store,
 				wasmer.NewFunctionType(
 					wasmer.NewValueTypes(),
 					// Warning: wasmer requires a concrete type here and as such this line is coupled to the module's runtime
 					wasmer.NewValueTypes(wasmer.I32),
 				),
 				func(v []wasmer.Value) ([]wasmer.Value, error) {
-					r := nextFunction()
+					r := (*nextFnPtr)()
 					return []wasmer.Value{wasmer.NewI32(r)}, nil
 				},
 			),
 		},
 	)
 
-	instance, err := wasmer.NewInstance(m.module, importObject)
+	instance, err := wasmer.NewInstance(mod, importObject)
 	if err != nil {
-		return module.Instance{}, err
+		return nil, err
 	}
 
 	memory, err := instance.Exports.GetMemory("memory")
 	if err != nil {
-		return module.Instance{}, err
+		return nil, err
 	}
 
 	alloc, err := instance.Exports.GetRawFunction("alloc")
 	if err != nil {
-		return module.Instance{}, err
+		return nil, err
 	}
 
-	transform, err := instance.Exports.GetRawFunction(functionName)
+	transform, err := instance.Exports.GetRawFunction(fnName)
 	if err != nil {
-		return module.Instance{}, err
+		return nil, err
 	}
 
+	if len(params) > 0 {
+		setParam, err := instance.Exports.GetRawFunction("set_param")
+		if err != nil {
+			return nil, err
+		}
+
+		sourceBytes, err := json.Marshal(params)
+		if err != nil {
+			return nil, err
+		}
+
+		index, err := alloc.Call(module.TypeIdSize + module.MemSize(len(sourceBytes)) + module.LenSize)
+		if err != nil {
+			return nil, err
+		}
+
+		mem := module.NewBytesMemory(memory.Data())
+		w := io.NewOffsetWriter(mem, int64(index.(module.MemSize)))
+
+		err = pipes.WriteItem(w, module.JSONTypeID, sourceBytes)
+		if err != nil {
+			return nil, err
+		}
+
+		index, err = setParam.Call(index)
+		if err != nil {
+			return nil, err
+		}
+
+		r := io.NewSectionReader(mem, int64(index.(module.MemSize)), math.MaxInt64)
+
+		// The `set_param` wasm function may error, in which case the error needs to be retrieved
+		// from memory using `pipes.GetItem`.
+		id, data, err := pipes.ReadItem(r)
+		if id.IsError() {
+			return nil, errors.New(string(data))
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &instanceHandles{
+		instance:  instance,
+		memory:    memory,
+		alloc:     alloc,
+		transform: transform,
+	}, nil
+}
+
+func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) (module.Instance, error) {
 	params := map[string]any{}
 	// Merge the param sets into a single map in case more than
 	// one map is provided.
@@ -109,84 +177,57 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 		}
 	}
 
-	if len(params) > 0 {
-		setParam, err := instance.Exports.GetRawFunction("set_param")
-		if err != nil {
-			return module.Instance{}, err
-		}
+	var nextFn func() module.MemSize = func() module.MemSize { return 0 }
 
-		sourceBytes, err := json.Marshal(params)
-		if err != nil {
-			return module.Instance{}, err
-		}
-
-		index, err := alloc.Call(module.TypeIdSize + module.MemSize(len(sourceBytes)) + module.LenSize)
-		if err != nil {
-			return module.Instance{}, err
-		}
-
-		mem := module.NewBytesMemory(memory.Data())
-		w := io.NewOffsetWriter(mem, int64(index.(module.MemSize)))
-
-		err = pipes.WriteItem(w, module.JSONTypeID, sourceBytes)
-		if err != nil {
-			return module.Instance{}, err
-		}
-
-		index, err = setParam.Call(index)
-		if err != nil {
-			return module.Instance{}, err
-		}
-
-		r := io.NewSectionReader(mem, int64(index.(module.MemSize)), math.MaxInt64)
-
-		// The `set_param` wasm function may error, in which case the error needs to be retrieved
-		// from memory using `pipes.GetItem`.
-		id, data, err := pipes.ReadItem(r)
-		if id.IsError() {
-			return module.Instance{}, errors.New(string(data))
-		}
-		if err != nil {
-			return module.Instance{}, err
-		}
+	handles, err := newInstanceHandles(m.runtime.store, m.module, functionName, params, &nextFn)
+	if err != nil {
+		return module.Instance{}, err
 	}
 
-	memSlice := memory.Data()
-	initialState := make([]byte, len(memSlice))
-	copy(initialState, memSlice)
+	var resetErr error
 
 	return module.Instance{
 		Alloc: func(u module.MemSize) (module.MemSize, error) {
-			r, err := alloc.Call(u)
+			if resetErr != nil {
+				return 0, resetErr
+			}
+			r, err := handles.alloc.Call(u)
 			if err != nil {
 				return 0, err
 			}
 			return r.(module.MemSize), err
 		},
 		Transform: func(next func() module.MemSize) (module.MemSize, error) {
+			if resetErr != nil {
+				return 0, resetErr
+			}
 			// By assigning the next function immediately prior to calling transform, we allow multiple
 			// pipeline stages to share the same wasm instance - provided they are not called concurrently.
 			// This also allows module state to be shared across pipeline stages.
-			nextFunction = next
-			r, err := transform.Call()
+			nextFn = next
+			r, err := handles.transform.Call()
 			if err != nil {
 				return 0, err
 			}
 			return r.(module.MemSize), err
 		},
 		Memory: func() module.Memory {
-			return module.NewBytesMemory(memory.Data())
+			return module.NewBytesMemory(handles.memory.Data())
 		},
 		Reset: func() {
-			initialLen := len(initialState)
-			currentMemory := memory.Data()
-
-			copy(currentMemory, initialState)
-
-			for i := initialLen; i < len(currentMemory); i++ {
-				currentMemory[i] = 0
+			nextFn = func() module.MemSize { return 0 }
+			newHandles, err := newInstanceHandles(m.runtime.store, m.module, functionName, params, &nextFn)
+			if err != nil {
+				resetErr = err
+				return
 			}
+			resetErr = nil
+			oldInstance := handles.instance
+			*handles = *newHandles
+			// Free the old instance's C-allocated linear memory now; the GC finalizer would do
+			// it eventually but wasm memory exerts no Go heap pressure (issue #159).
+			oldInstance.Close()
 		},
-		OwnedBy: instance,
+		OwnedBy: handles,
 	}, nil
 }
