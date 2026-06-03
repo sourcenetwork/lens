@@ -74,8 +74,15 @@ func newInstanceHandles(
 	fnName string,
 	params map[string]any,
 	nextFnPtr *func() module.MemSize,
-) (*instanceHandles, error) {
+) (_ *instanceHandles, err error) {
 	store := wasmtime.NewStore(eng)
+	// Close the store (freeing its instance and C-allocated linear memory) if we fail
+	// before returning successfully, so an errored NewInstance/Reset does not leak it (issue #158).
+	defer func() {
+		if err != nil {
+			store.Close()
+		}
+	}()
 
 	nextImport := wasmtime.WrapFunc(store, func() module.MemSize {
 		return (*nextFnPtr)()
