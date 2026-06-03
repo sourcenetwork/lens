@@ -69,10 +69,10 @@ type instanceHandles struct {
 // newInstanceHandles creates a fresh wasmtime store, instantiates mod, wires the nextFnPtr
 // import, and applies set_param when params is non-empty.
 func newInstanceHandles(
-	eng       *wasmtime.Engine,
-	mod       *wasmtime.Module,
-	fnName    string,
-	params    map[string]any,
+	eng *wasmtime.Engine,
+	mod *wasmtime.Module,
+	fnName string,
+	params map[string]any,
 	nextFnPtr *func() module.MemSize,
 ) (*instanceHandles, error) {
 	store := wasmtime.NewStore(eng)
@@ -135,6 +135,8 @@ func newInstanceHandles(
 		}
 		r := io.NewSectionReader(mem, int64(index.(module.MemSize)), math.MaxInt64)
 
+		// The `set_param` wasm function may error, in which case the error needs to be retrieved
+		// from memory using `pipes.GetItem`.
 		id, data, err := pipes.ReadItem(r)
 		if id.IsError() {
 			return nil, errors.New(string(data))
@@ -171,6 +173,9 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 
 	return module.Instance{
 		Alloc: func(u module.MemSize) (module.MemSize, error) {
+			if resetErr != nil {
+				return 0, resetErr
+			}
 			r, err := handles.alloc.Call(handles.store, u)
 			if err != nil {
 				return 0, err
@@ -181,6 +186,9 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 			if resetErr != nil {
 				return 0, resetErr
 			}
+			// By assigning the next function immediately prior to calling transform, we allow multiple
+			// pipeline stages to share the same wasm instance - provided they are not called concurrently.
+			// This also allows module state to be shared across pipeline stages.
 			nextFn = next
 			r, err := handles.transform.Call(handles.store)
 			if err != nil {
@@ -199,7 +207,13 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 				return
 			}
 			resetErr = nil
+			oldStore := handles.store
 			*handles = *newHandles
+			// Free the old store's C-allocated resources (instance state and linear memory) now.
+			// The GC finalizer would do this eventually, but wasm memory lives outside the Go heap
+			// and exerts no pressure on the Go GC, so dropped stores pile up faster than they are
+			// collected (issue #155).
+			oldStore.Close()
 		},
 		OwnedBy: handles,
 	}, nil
