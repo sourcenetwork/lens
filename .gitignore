@@ -26,3 +26,4 @@ sdk-rust/target
 sdk-rust/Cargo.lock
 host-go/build/host-go.exe
 .DS_Store
+docs/
