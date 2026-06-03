@@ -75,7 +75,7 @@ func newInstanceHandles(
 	fnName string,
 	params map[string]any,
 	nextFnPtr *func() module.MemSize,
-) (*instanceHandles, error) {
+) (_ *instanceHandles, err error) {
 	importObject := wasmer.NewImportObject()
 
 	// Register the `lens.next` function required as an import for wasm lens modules
@@ -101,6 +101,13 @@ func newInstanceHandles(
 	if err != nil {
 		return nil, err
 	}
+	// Close the instance (freeing its C-allocated linear memory) if we fail before
+	// returning successfully; the shared store is left intact (issue #158).
+	defer func() {
+		if err != nil {
+			instance.Close()
+		}
+	}()
 
 	memory, err := instance.Exports.GetMemory("memory")
 	if err != nil {
