@@ -67,24 +67,32 @@ type wModule struct {
 
 var _ module.Module = (*wModule)(nil)
 
-func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) (module.Instance, error) {
-	var nextFunction = func() module.MemSize { return 0 }
-	// Register the `lens.next` function required as an import for wasm lens modules
-	importObject := map[string]any{
-		"lens": map[string]any{
-			"next": js.FuncOf(func(this js.Value, args []js.Value) any {
-				return nextFunction()
-			}),
-		},
-	}
+// instanceHandles holds all per-instance js resources. Storing them behind a pointer lets
+// Reset swap the contents in-place so that the Alloc/Transform/Memory closures — which all
+// capture the same *instanceHandles — automatically see the fresh instance.
+type instanceHandles struct {
+	instance  js.Value
+	memory    js.Value
+	alloc     js.Value
+	transform js.Value
+}
 
+// newInstanceHandles instantiates the module with the given importObject and applies
+// set_param when params is non-empty.
+func newInstanceHandles(
+	rt *wRuntime,
+	mod js.Value,
+	fnName string,
+	params map[string]any,
+	importObject map[string]any,
+) (*instanceHandles, error) {
 	// Instantiates a WebAssembly.Instance from a WebAssembly.Module with imports.
 	//
 	// https://developer.mozilla.org/en-US/docs/WebAssembly/JavaScript_interface/instantiate_static
-	promise := m.runtime.webAssembly.Call("instantiate", m.module, importObject)
+	promise := rt.webAssembly.Call("instantiate", mod, importObject)
 	results, err := await(promise)
 	if err != nil {
-		return module.Instance{}, err
+		return nil, err
 	}
 	instance := results[0]
 
@@ -98,37 +106,28 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 	// https://developer.mozilla.org/en-US/docs/WebAssembly/JavaScript_interface/Memory
 	memory := exports.Get("memory")
 	if memory.Type() != js.TypeObject {
-		return module.Instance{}, errors.New(fmt.Sprintf("Export `%s` does not exist", "memory"))
+		return nil, fmt.Errorf("Export `%s` does not exist", "memory")
 	}
 
 	alloc := exports.Get("alloc")
 	if alloc.Type() != js.TypeFunction {
-		return module.Instance{}, errors.New(fmt.Sprintf("Export `%s` does not exist", "alloc"))
+		return nil, fmt.Errorf("Export `%s` does not exist", "alloc")
 	}
 
-	transform := exports.Get(functionName)
+	transform := exports.Get(fnName)
 	if transform.Type() != js.TypeFunction {
-		return module.Instance{}, errors.New(fmt.Sprintf("Export `%s` does not exist", functionName))
-	}
-
-	params := map[string]any{}
-	// Merge the param sets into a single map in case more than
-	// one map is provided.
-	for _, paramSet := range paramSets {
-		for key, value := range paramSet {
-			params[key] = value
-		}
+		return nil, fmt.Errorf("Export `%s` does not exist", fnName)
 	}
 
 	if len(params) > 0 {
 		setParam := exports.Get("set_param")
 		if setParam.Type() != js.TypeFunction {
-			return module.Instance{}, errors.New(fmt.Sprintf("Export `%s` does not exist", "set_param"))
+			return nil, fmt.Errorf("Export `%s` does not exist", "set_param")
 		}
 
 		sourceBytes, err := json.Marshal(params)
 		if err != nil {
-			return module.Instance{}, err
+			return nil, err
 		}
 
 		// allocate memory to write to
@@ -138,7 +137,7 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 
 		err = pipes.WriteItem(w, module.JSONTypeID, sourceBytes)
 		if err != nil {
-			return module.Instance{}, err
+			return nil, err
 		}
 
 		// set param from JavaScript memory
@@ -149,46 +148,85 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 		// from memory using `pipes.GetItem`.
 		id, data, err := pipes.ReadItem(r)
 		if id.IsError() {
-			return module.Instance{}, errors.New(string(data))
+			return nil, errors.New(string(data))
 		}
 		if err != nil {
-			return module.Instance{}, err
+			return nil, err
 		}
 	}
 
-	jsMemory := js.Global().Get("Uint8Array").New(memory.Get("buffer"))
-	initialLen := jsMemory.Get("length").Int()
-	initialState := make([]byte, initialLen)
-	js.CopyBytesToGo(initialState, jsMemory)
+	return &instanceHandles{
+		instance:  instance,
+		memory:    memory,
+		alloc:     alloc,
+		transform: transform,
+	}, nil
+}
+
+func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) (module.Instance, error) {
+	params := map[string]any{}
+	// Merge the param sets into a single map in case more than
+	// one map is provided.
+	for _, paramSet := range paramSets {
+		for key, value := range paramSet {
+			params[key] = value
+		}
+	}
+
+	var nextFn = func() module.MemSize { return 0 }
+	// Register the `lens.next` function required as an import for wasm lens modules. The
+	// import object (and its single js.Func) is created once and reused across re-instantiation
+	// so Reset does not churn js callback registrations.
+	importObject := map[string]any{
+		"lens": map[string]any{
+			"next": js.FuncOf(func(this js.Value, args []js.Value) any {
+				return nextFn()
+			}),
+		},
+	}
+
+	handles, err := newInstanceHandles(m.runtime, m.module, functionName, params, importObject)
+	if err != nil {
+		return module.Instance{}, err
+	}
+
+	var resetErr error
 
 	return module.Instance{
 		Alloc: func(u module.MemSize) (module.MemSize, error) {
-			result := alloc.Invoke(int32(u))
+			if resetErr != nil {
+				return 0, resetErr
+			}
+			result := handles.alloc.Invoke(int32(u))
 			return module.MemSize(result.Int()), nil
 		},
 		Transform: func(next func() module.MemSize) (module.MemSize, error) {
+			if resetErr != nil {
+				return 0, resetErr
+			}
 			// By assigning the next function immediately prior to calling transform, we allow multiple
 			// pipeline stages to share the same wasm instance - provided they are not called concurrently.
 			// This also allows module state to be shared across pipeline stages.
-			nextFunction = next
-			result := transform.Invoke()
+			nextFn = next
+			result := handles.transform.Invoke()
 			return module.MemSize(result.Int()), nil
 		},
 		Memory: func() module.Memory {
-			buffer := memory.Get("buffer")
-			return newMemory(buffer)
+			return newMemory(handles.memory.Get("buffer"))
 		},
 		Reset: func() {
-			initialLen := len(initialState)
-			currentLen := jsMemory.Get("length").Int()
-
-			js.CopyBytesToJS(jsMemory, initialState)
-
-			for i := initialLen; i < currentLen; i++ {
-				jsMemory.SetIndex(i, js.ValueOf(0))
+			nextFn = func() module.MemSize { return 0 }
+			newHandles, err := newInstanceHandles(m.runtime, m.module, functionName, params, importObject)
+			if err != nil {
+				resetErr = err
+				return
 			}
+			resetErr = nil
+			*handles = *newHandles
+			// The displaced WebAssembly.Instance has no explicit close; dropping the reference
+			// lets the runtime GC reclaim its linear memory (issue #159).
 		},
-		OwnedBy: instance,
+		OwnedBy: handles,
 	}, nil
 }
 

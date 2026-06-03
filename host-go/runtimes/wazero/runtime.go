@@ -18,6 +18,7 @@ import (
 	"github.com/sourcenetwork/lens/host-go/engine/pipes"
 
 	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/api"
 )
 
 const Name string = "wazero"
@@ -56,43 +57,113 @@ func (rt *wRuntime) NewModule(wasmBytes []byte) (module.Module, error) {
 	}, nil
 }
 
-func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) (module.Instance, error) {
-	ctx := context.TODO()
-	runtimeConfig := wazero.NewRuntimeConfig().WithCompilationCache(m.compilationCache)
-	runtime := wazero.NewRuntimeWithConfig(ctx, runtimeConfig)
+// instanceHandles holds all per-instance wazero resources. Storing them behind a pointer
+// lets Reset swap the contents in-place so that the Alloc/Transform/Memory closures — which
+// all capture the same *instanceHandles — automatically see the fresh runtime.
+type instanceHandles struct {
+	runtime   wazero.Runtime
+	instance  api.Module
+	memory    api.Memory
+	alloc     api.Function
+	transform api.Function
+}
 
-	var nextFunction = func() module.MemSize { return 0 }
-	_, err := runtime.NewHostModuleBuilder("lens").
+// newInstanceHandles creates a fresh wazero runtime (reusing the shared compilation cache),
+// wires the nextFnPtr import, instantiates the module, and applies set_param when params is
+// non-empty.
+func newInstanceHandles(
+	compilationCache wazero.CompilationCache,
+	moduleBytes []byte,
+	fnName string,
+	params map[string]any,
+	nextFnPtr *func() module.MemSize,
+) (*instanceHandles, error) {
+	ctx := context.TODO()
+	runtimeConfig := wazero.NewRuntimeConfig().WithCompilationCache(compilationCache)
+	rt := wazero.NewRuntimeWithConfig(ctx, runtimeConfig)
+
+	_, err := rt.NewHostModuleBuilder("lens").
 		NewFunctionBuilder().
 		WithFunc(func(ctx context.Context) module.MemSize {
-			return nextFunction()
+			return (*nextFnPtr)()
 		}).
 		Export("next").
 		Instantiate(ctx)
 	if err != nil {
-		return module.Instance{}, err
+		return nil, err
 	}
 
-	instance, err := runtime.Instantiate(ctx, m.moduleBytes)
+	inst, err := rt.Instantiate(ctx, moduleBytes)
 	if err != nil {
-		return module.Instance{}, err
+		return nil, err
 	}
 
-	memory := instance.ExportedMemory("memory")
+	memory := inst.ExportedMemory("memory")
 	if memory == nil {
-		return module.Instance{}, errors.New(fmt.Sprintf("Export `%s` does not exist", "memory"))
+		return nil, fmt.Errorf("Export `%s` does not exist", "memory")
 	}
 
-	alloc := instance.ExportedFunction("alloc")
+	alloc := inst.ExportedFunction("alloc")
 	if alloc == nil {
-		return module.Instance{}, errors.New(fmt.Sprintf("Export `%s` does not exist", "alloc"))
+		return nil, fmt.Errorf("Export `%s` does not exist", "alloc")
 	}
 
-	transform := instance.ExportedFunction(functionName)
+	transform := inst.ExportedFunction(fnName)
 	if transform == nil {
-		return module.Instance{}, errors.New(fmt.Sprintf("Export `%s` does not exist", functionName))
+		return nil, fmt.Errorf("Export `%s` does not exist", fnName)
 	}
 
+	if len(params) > 0 {
+		setParam := inst.ExportedFunction("set_param")
+		if setParam == nil {
+			return nil, fmt.Errorf("Export `%s` does not exist", "set_param")
+		}
+
+		sourceBytes, err := json.Marshal(params)
+		if err != nil {
+			return nil, err
+		}
+
+		index, err := alloc.Call(ctx, uint64(module.TypeIdSize+module.MemSize(len(sourceBytes))+module.LenSize))
+		if err != nil {
+			return nil, err
+		}
+
+		mem := newMemory(memory)
+		w := io.NewOffsetWriter(mem, int64(index[0]))
+
+		err = pipes.WriteItem(w, module.JSONTypeID, sourceBytes)
+		if err != nil {
+			return nil, err
+		}
+
+		index, err = setParam.Call(ctx, index[0])
+		if err != nil {
+			return nil, err
+		}
+		r := io.NewSectionReader(mem, int64(index[0]), math.MaxInt64)
+
+		// The `set_param` wasm function may error, in which case the error needs to be retrieved
+		// from memory using `pipes.GetItem`.
+		id, data, err := pipes.ReadItem(r)
+		if id.IsError() {
+			return nil, errors.New(string(data))
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &instanceHandles{
+		runtime:   rt,
+		instance:  inst,
+		memory:    memory,
+		alloc:     alloc,
+		transform: transform,
+	}, nil
+}
+
+func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) (module.Instance, error) {
 	params := map[string]any{}
 	// Merge the param sets into a single map in case more than
 	// one map is provided.
@@ -102,80 +173,58 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 		}
 	}
 
-	if len(params) > 0 {
-		setParam := instance.ExportedFunction("set_param")
-		if err != nil {
-			return module.Instance{}, errors.New(fmt.Sprintf("Export `%s` does not exist", "set_param"))
-		}
+	var nextFn func() module.MemSize = func() module.MemSize { return 0 }
 
-		sourceBytes, err := json.Marshal(params)
-		if err != nil {
-			return module.Instance{}, err
-		}
-
-		index, err := alloc.Call(ctx, uint64(module.TypeIdSize+module.MemSize(len(sourceBytes))+module.LenSize))
-		if err != nil {
-			return module.Instance{}, err
-		}
-
-		mem := newMemory(memory)
-		w := io.NewOffsetWriter(mem, int64(index[0]))
-
-		err = pipes.WriteItem(w, module.JSONTypeID, sourceBytes)
-		if err != nil {
-			return module.Instance{}, err
-		}
-
-		index, err = setParam.Call(ctx, index[0])
-		if err != nil {
-			return module.Instance{}, err
-		}
-		r := io.NewSectionReader(mem, int64(index[0]), math.MaxInt64)
-
-		// The `set_param` wasm function may error, in which case the error needs to be retrieved
-		// from memory using `pipes.GetItem`.
-		id, data, err := pipes.ReadItem(r)
-		if id.IsError() {
-			return module.Instance{}, errors.New(string(data))
-		}
-		if err != nil {
-			return module.Instance{}, err
-		}
+	handles, err := newInstanceHandles(m.compilationCache, m.moduleBytes, functionName, params, &nextFn)
+	if err != nil {
+		return module.Instance{}, err
 	}
 
-	initialState, _ := memory.Read(0, memory.Size())
+	ctx := context.TODO()
+	var resetErr error
 
 	return module.Instance{
 		Alloc: func(u module.MemSize) (module.MemSize, error) {
-			r, err := alloc.Call(ctx, uint64(u))
+			if resetErr != nil {
+				return 0, resetErr
+			}
+			r, err := handles.alloc.Call(ctx, uint64(u))
 			if err != nil {
 				return 0, err
 			}
 			return module.MemSize(r[0]), nil
 		},
 		Transform: func(next func() module.MemSize) (module.MemSize, error) {
+			if resetErr != nil {
+				return 0, resetErr
+			}
 			// By assigning the next function immediately prior to calling transform, we allow multiple
 			// pipeline stages to share the same wasm instance - provided they are not called concurrently.
 			// This also allows module state to be shared across pipeline stages.
-			nextFunction = next
-			r, err := transform.Call(ctx)
+			nextFn = next
+			r, err := handles.transform.Call(ctx)
 			if err != nil {
 				return 0, err
 			}
 			return module.MemSize(r[0]), nil
 		},
 		Memory: func() module.Memory {
-			return newMemory(memory)
+			return newMemory(handles.memory)
 		},
 		Reset: func() {
-			initialLen := uint32(len(initialState))
-			currentLen := memory.Size()
-			memory.Write(0, initialState)
-
-			for i := initialLen; i < currentLen; i++ {
-				memory.WriteByte(i, 0)
+			nextFn = func() module.MemSize { return 0 }
+			newHandles, err := newInstanceHandles(m.compilationCache, m.moduleBytes, functionName, params, &nextFn)
+			if err != nil {
+				resetErr = err
+				return
 			}
+			resetErr = nil
+			oldRuntime := handles.runtime
+			*handles = *newHandles
+			// Free the old runtime (and its instance and linear memory) now rather than waiting
+			// for the GC, mirroring the wasmtime fix (issue #159).
+			_ = oldRuntime.Close(ctx)
 		},
-		OwnedBy: instance,
+		OwnedBy: handles,
 	}, nil
 }
