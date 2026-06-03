@@ -177,16 +177,20 @@ func (m *wModule) NewInstance(functionName string, paramSets ...map[string]any) 
 	// Register the `lens.next` function required as an import for wasm lens modules. The
 	// import object (and its single js.Func) is created once and reused across re-instantiation
 	// so Reset does not churn js callback registrations.
+	nextImport := js.FuncOf(func(this js.Value, args []js.Value) any {
+		return nextFn()
+	})
 	importObject := map[string]any{
 		"lens": map[string]any{
-			"next": js.FuncOf(func(this js.Value, args []js.Value) any {
-				return nextFn()
-			}),
+			"next": nextImport,
 		},
 	}
 
 	handles, err := newInstanceHandles(m.runtime, m.module, functionName, params, importObject)
 	if err != nil {
+		// The instance is never returned, so release the host callback registration we
+		// created above rather than leaking it (issue #158).
+		nextImport.Release()
 		return module.Instance{}, err
 	}
 
