@@ -24,7 +24,6 @@ func (m *memory) WriteAt(src []byte, offset int64) (int, error) {
 }
 
 func (m *memory) Size() uint32 {
-	// wasm linear memory grows in 64 KiB pages per the spec.
-	const wasmPageSize = 65536
-	return m.memory.Size() * wasmPageSize
+	// wazero's api.Memory.Size already reports the size in bytes.
+	return m.memory.Size()
 }
