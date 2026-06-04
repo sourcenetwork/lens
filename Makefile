@@ -36,3 +36,8 @@ test\:scripts:
 test\:js:
 	$(MAKE) deps:test-js
 	$(MAKE) --no-print-directory -C ./host-go test:js
+
+# On-demand, non-gating RSS leak diagnostic (issue #160).
+.PHONY: diag\:reset-rss
+diag\:reset-rss:
+	$(MAKE) --no-print-directory -C ./tests/integration diag:reset-rss
