@@ -43,34 +43,38 @@ func (a *Transform) Execute() {
 
 		n.Transforms = append(n.Transforms, output)
 
-		for i := 0; true; i++ {
-			println(fmt.Sprintf("TransformEval: Node: {%v} item: {%v}", nodeIndex, i))
+		if output != nil {
+			for i := 0; true; i++ {
+				println(fmt.Sprintf("TransformEval: Node: {%v} item: {%v}", nodeIndex, i))
 
-			hasNext, err := output.Next()
-			require.NoError(a.s.T, err)
+				hasNext, err := output.Next()
+				require.NoError(a.s.T, err)
 
-			expectedHasNext, err := a.Expected.Next()
-			require.NoError(a.s.T, err)
+				expectedHasNext, err := a.Expected.Next()
+				require.NoError(a.s.T, err)
 
-			require.Equal(a.s.T, expectedHasNext, hasNext)
+				require.Equal(a.s.T, expectedHasNext, hasNext)
 
-			if !hasNext {
-				break
+				if !hasNext {
+					break
+				}
+
+				value, err := output.Value()
+				require.NoError(a.s.T, err)
+
+				expectedValue, err := a.Expected.Value()
+				require.NoError(a.s.T, err)
+
+				require.Equal(a.s.T, expectedValue, value)
 			}
-
-			value, err := output.Value()
-			require.NoError(a.s.T, err)
-
-			expectedValue, err := a.Expected.Value()
-			require.NoError(a.s.T, err)
-
-			require.Equal(a.s.T, expectedValue, value)
 		}
 
-		expectedHasNext, err := a.Expected.Next()
-		require.NoError(a.s.T, err)
-		require.False(a.s.T, expectedHasNext)
+		if a.Expected != nil {
+			expectedHasNext, err := a.Expected.Next()
+			require.NoError(a.s.T, err)
+			require.False(a.s.T, expectedHasNext)
 
-		a.Expected.Reset()
+			a.Expected.Reset()
+		}
 	}
 }

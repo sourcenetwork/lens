@@ -281,7 +281,13 @@ func getLinkPrototype() cidlink.LinkPrototype {
 	}}
 }
 
+// assertIsCid returns an error if the given input string is not a valid CID.
+//
+// Empty strings will never return an error since this is behavior DefraDB relies on.
 func assertIsCid(input string) error {
+	if input == "" {
+		return nil
+	}
 	_, err := cid.Parse(input)
 	return err
 }
