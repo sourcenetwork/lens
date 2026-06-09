@@ -59,6 +59,9 @@ type Repository interface {
 		source enumerable.Enumerable[Document],
 		id string,
 	) (enumerable.Enumerable[Document], error)
+
+	// Delete removes any cached lenses for the given id. It is idempotent.
+	Delete(ctx context.Context, id string) error
 }
 
 // repository is responsible for managing all migration related state within a local
@@ -91,6 +94,10 @@ type txnContext struct {
 	txn               Txn
 	lensPoolsByID     map[string]*pool
 	reversedPoolsByID map[string]*pool
+
+	// deleted holds the ids tombstoned within this transaction. They are hidden from
+	// reads before commit and removed from the shared pools on commit.
+	deleted map[string]struct{}
 }
 
 func newTxnCtx(txn Txn) *txnContext {
@@ -98,6 +105,7 @@ func newTxnCtx(txn Txn) *txnContext {
 		txn:               txn,
 		lensPoolsByID:     map[string]*pool{},
 		reversedPoolsByID: map[string]*pool{},
+		deleted:           map[string]struct{}{},
 	}
 }
 
@@ -145,6 +153,13 @@ func (r *repository) getCtx(txn Txn, readonly bool) *txnContext {
 		for id, locker := range txnCtx.reversedPoolsByID {
 			r.reversedPoolsByID[id] = locker
 		}
+		// Apply tombstones after the additive merge. A single id covers both the forward
+		// and reversed pools. The write-time invariant (see `add`/`delete_`) guarantees an
+		// id is never both re-added and tombstoned, so ordering here is unambiguous.
+		for id := range txnCtx.deleted {
+			delete(r.lensPoolsByID, id)
+			delete(r.reversedPoolsByID, id)
+		}
 		r.poolLock.Unlock()
 
 		r.txnLock.Lock()
@@ -191,6 +206,10 @@ func (r *repository) add(
 		Lenses: inversedModuleCfgs,
 	}
 
+	// A re-add within the same transaction overrides any prior tombstone, keeping the
+	// invariant that an id is never both staged and tombstoned at commit time.
+	delete(txnCtx.deleted, id)
+
 	err := r.cachePool(txnCtx.lensPoolsByID, cfg, id)
 	if err != nil {
 		return err
@@ -203,6 +222,17 @@ func (r *repository) add(
 	}
 
 	return nil
+}
+
+// delete_ tombstones the given id within the transaction context. The pools are dropped
+// from the shared maps when the transaction commits. It is idempotent.
+//
+// Pools and pipes have no explicit teardown (GC-based); a pipe borrowed mid-flight keeps
+// its pool channel alive via Go reference semantics, so dropping the map entry is safe.
+func (r *repository) delete_(txnCtx *txnContext, id string) {
+	delete(txnCtx.lensPoolsByID, id)
+	delete(txnCtx.reversedPoolsByID, id)
+	txnCtx.deleted[id] = struct{}{}
 }
 
 func (r *repository) cachePool(
@@ -230,7 +260,7 @@ func (r *repository) transform(
 	src enumerable.Enumerable[Document],
 	id string,
 ) (enumerable.Enumerable[Document], error) {
-	return r.appendLens(r.lensPoolsByID, txnCtx.lensPoolsByID, src, id)
+	return r.appendLens(r.lensPoolsByID, txnCtx.lensPoolsByID, txnCtx.deleted, src, id)
 }
 
 func (r *repository) inverse(
@@ -238,16 +268,17 @@ func (r *repository) inverse(
 	src enumerable.Enumerable[Document],
 	id string,
 ) (enumerable.Enumerable[Document], error) {
-	return r.appendLens(r.reversedPoolsByID, txnCtx.reversedPoolsByID, src, id)
+	return r.appendLens(r.reversedPoolsByID, txnCtx.reversedPoolsByID, txnCtx.deleted, src, id)
 }
 
 func (r *repository) appendLens(
 	pools map[string]*pool,
 	txnPools map[string]*pool,
+	deleted map[string]struct{},
 	src enumerable.Enumerable[Document],
 	id string,
 ) (enumerable.Enumerable[Document], error) {
-	lensPool, ok := r.getPool(pools, txnPools, id)
+	lensPool, ok := r.getPool(pools, txnPools, deleted, id)
 	if !ok {
 		// If there are no migrations for this schema version, just return the given source.
 		return src, nil
@@ -266,10 +297,15 @@ func (r *repository) appendLens(
 func (r *repository) getPool(
 	pools map[string]*pool,
 	txnPools map[string]*pool,
+	deleted map[string]struct{},
 	id string,
 ) (*pool, bool) {
 	if pool, ok := txnPools[id]; ok {
 		return pool, true
+	}
+	if _, ok := deleted[id]; ok {
+		// Tombstoned within this transaction - hide it from reads before commit.
+		return nil, false
 	}
 
 	r.poolLock.RLock()

@@ -162,6 +162,35 @@ func add(ctx context.Context, cfg model.Lens, txn *txn) (string, error) {
 	return configCID.String(), nil
 }
 
+func delete_(ctx context.Context, id string, txn *txn) error {
+	if err := assertIsCid(id); err != nil {
+		return err
+	}
+
+	configCID, err := cid.Parse(id)
+	if err != nil {
+		return err
+	}
+
+	// Remove the index entry that drives `list`. The content-addressed config and module
+	// blocks are intentionally left in the blockstore as they may be shared between configs.
+	//
+	// `cid.Bytes()` matches the key written by `add` (`configLink.Binary()`) and by the p2p
+	// `syncLens`.
+	key := configCID.Bytes()
+	has, err := txn.indexstore.Has(ctx, key)
+	if err != nil {
+		return err
+	}
+	if has {
+		if err := txn.indexstore.Delete(ctx, key); err != nil {
+			return err
+		}
+	}
+
+	return txn.repository.Delete(ctx, id)
+}
+
 func list(ctx context.Context, txn *txn) (map[string]model.Lens, error) {
 	iter, err := txn.indexstore.Iterator(
 		ctx,

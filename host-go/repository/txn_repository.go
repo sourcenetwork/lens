@@ -51,6 +51,23 @@ func (r *explicitTxnRepository) Add(ctx context.Context, collectionID string, cf
 	return r.repository.add(r.repository.getCtx(r.txn, false), collectionID, cfg)
 }
 
+func (r *implicitTxnRepository) Delete(ctx context.Context, id string) error {
+	txn, err := r.db.NewTxn(false)
+	if err != nil {
+		return err
+	}
+	defer txn.Discard()
+
+	r.repository.delete_(r.repository.getCtx(txn, false), id)
+
+	return txn.Commit()
+}
+
+func (r *explicitTxnRepository) Delete(ctx context.Context, id string) error {
+	r.repository.delete_(r.repository.getCtx(r.txn, false), id)
+	return nil
+}
+
 func (r *implicitTxnRepository) Transform(
 	ctx context.Context,
 	src enumerable.Enumerable[Document],
