@@ -35,6 +35,14 @@ type Store interface {
 	// List fetches all the stored Lenses from the store and returns them mapped by their content ID.
 	List(ctx context.Context) (map[string]model.Lens, error)
 
+	// Delete removes the Lens with the given content ID.
+	//
+	// It is idempotent: no error is returned if the id is unknown or already removed.
+	//
+	// The content-addressed config and module blocks are left in the blockstore as they may be
+	// shared between lens configs; the lens is removed from `List` once its index entry is gone.
+	Delete(ctx context.Context, id string) error
+
 	// Reload fetches all stored Lenses and uses them to overwrite any cached instances held by the in
 	// memory wasm instance repository.
 	//

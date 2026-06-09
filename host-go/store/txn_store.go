@@ -109,6 +109,16 @@ func (s *explicitTxnStore) List(ctx context.Context) (map[string]model.Lens, err
 	return list(ctx, s.txn)
 }
 
+func (s *implicitTxnStore) Delete(ctx context.Context, id string) error {
+	// red stub - intentionally a no-op until the green commit.
+	return nil
+}
+
+func (s *explicitTxnStore) Delete(ctx context.Context, id string) error {
+	// red stub - intentionally a no-op until the green commit.
+	return nil
+}
+
 func (s *implicitTxnStore) Transform(
 	ctx context.Context,
 	source enumerable.Enumerable[Document],
