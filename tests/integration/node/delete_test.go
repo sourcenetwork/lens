@@ -94,6 +94,75 @@ func TestDeleteAlreadyRemovedIsIdempotent(t *testing.T) {
 	test.Execute(t)
 }
 
+// TestDelete_TxnDiscard asserts that a Delete staged in a transaction does not take
+// effect if the transaction is discarded - the tombstone is transaction-scoped and
+// never reaches the shared index or repository pools.
+func TestDelete_TxnDiscard(t *testing.T) {
+	test := &integration.Test{
+		Actions: []action.Action{
+			&action.Add{
+				Config: model.Lens{
+					Lenses: []model.LensModule{
+						{
+							Path: modules.WasmPath1,
+						},
+					},
+				},
+			},
+			&action.TxnCreate{},
+			&action.TxnAction[*action.Delete]{
+				Action: &action.Delete{
+					LensID: "{{.LensIDs0}}",
+				},
+			},
+			&action.TxnDiscard{},
+			&action.List{
+				Expected: map[string]model.Lens{
+					"{{.LensIDs0}}": {
+						Lenses: []model.LensModule{
+							{
+								Path: "{{.WasmBytes0}}",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	test.Execute(t)
+}
+
+// TestDelete_TxnCommit asserts that a Delete staged in a transaction takes effect once
+// the transaction is committed.
+func TestDelete_TxnCommit(t *testing.T) {
+	test := &integration.Test{
+		Actions: []action.Action{
+			&action.Add{
+				Config: model.Lens{
+					Lenses: []model.LensModule{
+						{
+							Path: modules.WasmPath1,
+						},
+					},
+				},
+			},
+			&action.TxnCreate{},
+			&action.TxnAction[*action.Delete]{
+				Action: &action.Delete{
+					LensID: "{{.LensIDs0}}",
+				},
+			},
+			&action.TxnCommit{},
+			&action.List{
+				Expected: map[string]model.Lens{},
+			},
+		},
+	}
+
+	test.Execute(t)
+}
+
 // TestDeleteOneOfMany asserts that deleting one lens leaves the others intact.
 func TestDeleteOneOfMany(t *testing.T) {
 	test := &integration.Test{
