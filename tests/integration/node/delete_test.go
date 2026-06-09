@@ -47,3 +47,91 @@ func TestDelete(t *testing.T) {
 
 	test.Execute(t)
 }
+
+// TestDeleteUnknownIsIdempotent asserts that deleting a syntactically valid but
+// unknown lens id returns no error and leaves the store empty.
+func TestDeleteUnknownIsIdempotent(t *testing.T) {
+	test := &integration.Test{
+		Actions: []action.Action{
+			&action.Delete{
+				LensID: "bafyreihrdqmhlej6xidpkbwe6ltn2cw34oqvdji4sdh7xbrjciggxzk3ue",
+			},
+			&action.List{
+				Expected: map[string]model.Lens{},
+			},
+		},
+	}
+
+	test.Execute(t)
+}
+
+// TestDeleteAlreadyRemovedIsIdempotent asserts that deleting the same lens twice
+// does not error on the second, already-removed, call.
+func TestDeleteAlreadyRemovedIsIdempotent(t *testing.T) {
+	test := &integration.Test{
+		Actions: []action.Action{
+			&action.Add{
+				Config: model.Lens{
+					Lenses: []model.LensModule{
+						{
+							Path: modules.WasmPath1,
+						},
+					},
+				},
+			},
+			&action.Delete{
+				LensID: "{{.LensIDs0}}",
+			},
+			&action.Delete{
+				LensID: "{{.LensIDs0}}",
+			},
+			&action.List{
+				Expected: map[string]model.Lens{},
+			},
+		},
+	}
+
+	test.Execute(t)
+}
+
+// TestDeleteOneOfMany asserts that deleting one lens leaves the others intact.
+func TestDeleteOneOfMany(t *testing.T) {
+	test := &integration.Test{
+		Actions: []action.Action{
+			&action.Add{
+				Config: model.Lens{
+					Lenses: []model.LensModule{
+						{
+							Path: modules.WasmPath1,
+						},
+					},
+				},
+			},
+			&action.Add{
+				Config: model.Lens{
+					Lenses: []model.LensModule{
+						{
+							Path: modules.WasmPath2,
+						},
+					},
+				},
+			},
+			&action.Delete{
+				LensID: "{{.LensIDs0}}",
+			},
+			&action.List{
+				Expected: map[string]model.Lens{
+					"{{.LensIDs1}}": {
+						Lenses: []model.LensModule{
+							{
+								Path: "{{.WasmBytes1}}",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	test.Execute(t)
+}
