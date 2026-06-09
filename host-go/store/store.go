@@ -267,8 +267,10 @@ func reload(ctx context.Context, txn *txn) error {
 		}
 	}
 
-	// todo - keys will not be removed from the repository until
-	// https://github.com/sourcenetwork/lens/issues/118
+	// note - `Delete` (#118) keeps the index and repository in sync for the normal path.
+	// `reload` is still purely additive: it does not purge repository pools whose index
+	// entries were removed out-of-band. Diffing the cached ids against the index would
+	// require the repository to expose its id set; left as a follow-up.
 
 	return nil
 }
