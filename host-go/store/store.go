@@ -35,6 +35,14 @@ type Store interface {
 	// List fetches all the stored Lenses from the store and returns them mapped by their content ID.
 	List(ctx context.Context) (map[string]model.Lens, error)
 
+	// Delete removes the Lens with the given content ID.
+	//
+	// It is idempotent: no error is returned if the id is unknown or already removed.
+	//
+	// The content-addressed config and module blocks are left in the blockstore as they may be
+	// shared between lens configs; the lens is removed from `List` once its index entry is gone.
+	Delete(ctx context.Context, id string) error
+
 	// Reload fetches all stored Lenses and uses them to overwrite any cached instances held by the in
 	// memory wasm instance repository.
 	//
@@ -154,6 +162,35 @@ func add(ctx context.Context, cfg model.Lens, txn *txn) (string, error) {
 	return configCID.String(), nil
 }
 
+func delete_(ctx context.Context, id string, txn *txn) error {
+	if err := assertIsCid(id); err != nil {
+		return err
+	}
+
+	configCID, err := cid.Parse(id)
+	if err != nil {
+		return err
+	}
+
+	// Remove the index entry that drives `list`. The content-addressed config and module
+	// blocks are intentionally left in the blockstore as they may be shared between configs.
+	//
+	// `cid.Bytes()` matches the key written by `add` (`configLink.Binary()`) and by the p2p
+	// `syncLens`.
+	key := configCID.Bytes()
+	has, err := txn.indexstore.Has(ctx, key)
+	if err != nil {
+		return err
+	}
+	if has {
+		if err := txn.indexstore.Delete(ctx, key); err != nil {
+			return err
+		}
+	}
+
+	return txn.repository.Delete(ctx, id)
+}
+
 func list(ctx context.Context, txn *txn) (map[string]model.Lens, error) {
 	iter, err := txn.indexstore.Iterator(
 		ctx,
@@ -230,8 +267,10 @@ func reload(ctx context.Context, txn *txn) error {
 		}
 	}
 
-	// todo - keys will not be removed from the repository until
-	// https://github.com/sourcenetwork/lens/issues/118
+	// note - `Delete` (#118) keeps the index and repository in sync for the normal path.
+	// `reload` is still purely additive: it does not purge repository pools whose index
+	// entries were removed out-of-band. Diffing the cached ids against the index would
+	// require the repository to expose its id set; left as a follow-up.
 
 	return nil
 }

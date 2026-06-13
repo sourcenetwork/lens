@@ -109,6 +109,24 @@ func (s *explicitTxnStore) List(ctx context.Context) (map[string]model.Lens, err
 	return list(ctx, s.txn)
 }
 
+func (s *implicitTxnStore) Delete(ctx context.Context, id string) error {
+	txn, err := s.newTxn(false)
+	if err != nil {
+		return err
+	}
+	defer txn.Discard()
+
+	if err := delete_(ctx, id, txn); err != nil {
+		return err
+	}
+
+	return txn.Commit()
+}
+
+func (s *explicitTxnStore) Delete(ctx context.Context, id string) error {
+	return delete_(ctx, id, s.txn)
+}
+
 func (s *implicitTxnStore) Transform(
 	ctx context.Context,
 	source enumerable.Enumerable[Document],
